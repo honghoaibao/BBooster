@@ -285,7 +285,7 @@ class ShizukuCommandEngine(context: Context) {
         const val USER_SERVICE_TAG = "bbooster-readonly-command-service"
         const val USER_SERVICE_VERSION = 2
         const val USER_SERVICE_PROCESS_SUFFIX = "bbooster"
-        const val BIND_TIMEOUT_MS = 12_000L
+        const val BIND_TIMEOUT_MS = 35_000L
         const val COMMAND_TIMEOUT_MS = 8_000L
         const val REMOTE_ERROR_EXIT_CODE = -1
         const val REJECTED_EXIT_CODE = -3
