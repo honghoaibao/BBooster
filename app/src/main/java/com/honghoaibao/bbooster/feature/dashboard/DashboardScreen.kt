@@ -15,11 +15,13 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -28,16 +30,25 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.honghoaibao.bbooster.core.shizuku.ShizukuConnectionState
+import com.honghoaibao.bbooster.core.shizuku.ShizukuConnectionStatus
+import com.honghoaibao.bbooster.core.shizuku.ShizukuPrivilege
 import com.honghoaibao.bbooster.ui.theme.Amber
 import com.honghoaibao.bbooster.ui.theme.DarkSlate
 import com.honghoaibao.bbooster.ui.theme.ElectricCyan
+import com.honghoaibao.bbooster.ui.theme.Emerald
 import com.honghoaibao.bbooster.ui.theme.MutedText
 import com.honghoaibao.bbooster.ui.theme.Obsidian
 import com.honghoaibao.bbooster.ui.theme.SlateBorder
 import com.honghoaibao.bbooster.ui.theme.SoftWhite
 
 @Composable
-fun DashboardScreen() {
+fun DashboardScreen(
+    shizukuState: ShizukuConnectionState,
+    onRequestShizukuPermission: () -> Unit,
+    onOpenShizuku: () -> Unit,
+    onRefreshShizuku: () -> Unit
+) {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -46,7 +57,7 @@ fun DashboardScreen() {
             .padding(horizontal = 20.dp, vertical = 24.dp),
         verticalArrangement = Arrangement.spacedBy(22.dp)
     ) {
-        Header()
+        Header(shizukuState)
 
         Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Text(
@@ -62,12 +73,17 @@ fun DashboardScreen() {
             )
         }
 
-        ShizukuStatusCard()
+        ShizukuStatusCard(
+            state = shizukuState,
+            onRequestPermission = onRequestShizukuPermission,
+            onOpenShizuku = onOpenShizuku,
+            onRefresh = onRefreshShizuku
+        )
 
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             SectionHeading(
                 title = "DEVICE OVERVIEW",
-                trailing = "PHASE 1"
+                trailing = "PHASE 2"
             )
             Card(
                 colors = CardDefaults.cardColors(containerColor = DarkSlate),
@@ -121,7 +137,7 @@ fun DashboardScreen() {
             border = BorderStroke(1.dp, SlateBorder)
         ) {
             Text(
-                text = "FOUNDATION BUILD  ·  v0.1.0",
+                text = "SHIZUKU FOUNDATION  ·  v0.2.0",
                 color = MutedText,
                 fontSize = 11.sp,
                 fontWeight = FontWeight.SemiBold,
@@ -135,7 +151,9 @@ fun DashboardScreen() {
 }
 
 @Composable
-private fun Header() {
+private fun Header(state: ShizukuConnectionState) {
+    val badgeColor = state.status.badgeColor()
+
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
@@ -157,9 +175,9 @@ private fun Header() {
             )
         }
         Surface(
-            color = Color(0xFF302819),
+            color = badgeColor.copy(alpha = 0.13f),
             shape = CircleShape,
-            border = BorderStroke(1.dp, Color(0xFF66502A))
+            border = BorderStroke(1.dp, badgeColor.copy(alpha = 0.55f))
         ) {
             Row(
                 modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
@@ -168,12 +186,12 @@ private fun Header() {
             ) {
                 Surface(
                     modifier = Modifier.width(7.dp).height(7.dp),
-                    color = Amber,
+                    color = badgeColor,
                     shape = CircleShape
                 ) {}
                 Text(
-                    text = "NOT CONNECTED",
-                    color = Amber,
+                    text = state.status.badgeLabel(),
+                    color = badgeColor,
                     fontSize = 9.sp,
                     fontWeight = FontWeight.Bold,
                     letterSpacing = 0.5.sp
@@ -184,10 +202,35 @@ private fun Header() {
 }
 
 @Composable
-private fun ShizukuStatusCard() {
+private fun ShizukuStatusCard(
+    state: ShizukuConnectionState,
+    onRequestPermission: () -> Unit,
+    onOpenShizuku: () -> Unit,
+    onRefresh: () -> Unit
+) {
+    val isReady = state.status == ShizukuConnectionStatus.READY
+    val title = when (state.status) {
+        ShizukuConnectionStatus.CHECKING -> "Checking Shizuku service"
+        ShizukuConnectionStatus.SERVICE_NOT_RUNNING -> "Shizuku is not running"
+        ShizukuConnectionStatus.PERMISSION_REQUIRED -> "Permission required"
+        ShizukuConnectionStatus.REQUESTING_PERMISSION -> "Waiting for permission"
+        ShizukuConnectionStatus.READY -> "Shizuku connection ready"
+        ShizukuConnectionStatus.UNSUPPORTED_API -> "Shizuku version is too old"
+        ShizukuConnectionStatus.ERROR -> "Connection check failed"
+    }
+    val description = state.message ?: when (state.status) {
+        ShizukuConnectionStatus.CHECKING -> "Checking whether the Shizuku Binder is available."
+        ShizukuConnectionStatus.SERVICE_NOT_RUNNING -> "Start Shizuku, or enable a compatible Sui service, then refresh this screen."
+        ShizukuConnectionStatus.PERMISSION_REQUIRED -> "Shizuku is available. Grant BBooster access to continue."
+        ShizukuConnectionStatus.REQUESTING_PERMISSION -> "Complete the permission prompt shown by Shizuku."
+        ShizukuConnectionStatus.READY -> "BBooster can now detect the Shizuku service and permission state."
+        ShizukuConnectionStatus.UNSUPPORTED_API -> "Update Shizuku and start the service again."
+        ShizukuConnectionStatus.ERROR -> "Refresh the connection state and try again."
+    }
+
     Card(
         colors = CardDefaults.cardColors(containerColor = DarkSlate),
-        border = BorderStroke(1.dp, SlateBorder),
+        border = BorderStroke(1.dp, if (isReady) Emerald.copy(alpha = 0.55f) else SlateBorder),
         shape = RoundedCornerShape(22.dp),
         modifier = Modifier.fillMaxWidth()
     ) {
@@ -203,17 +246,79 @@ private fun ShizukuStatusCard() {
                 letterSpacing = 1.2.sp
             )
             Text(
-                text = "Privilege engine is not active",
+                text = title,
                 color = SoftWhite,
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Bold
             )
             Text(
-                text = "Shizuku setup and permission handling will be added in Phase 2. No system settings or other apps are modified in this build.",
+                text = description,
                 color = MutedText,
                 fontSize = 13.sp,
                 lineHeight = 19.sp
             )
+
+            if (isReady) {
+                Text(
+                    text = state.connectionDetail(),
+                    color = Emerald,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
+            }
+
+            when (state.status) {
+                ShizukuConnectionStatus.PERMISSION_REQUIRED -> {
+                    Button(
+                        onClick = onRequestPermission,
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = ElectricCyan,
+                            contentColor = Obsidian
+                        )
+                    ) {
+                        Text("Grant Shizuku permission", fontWeight = FontWeight.Bold)
+                    }
+                }
+
+                ShizukuConnectionStatus.SERVICE_NOT_RUNNING,
+                ShizukuConnectionStatus.UNSUPPORTED_API -> {
+                    Button(
+                        onClick = onOpenShizuku,
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = ElectricCyan,
+                            contentColor = Obsidian
+                        )
+                    ) {
+                        Text("Open Shizuku", fontWeight = FontWeight.Bold)
+                    }
+                }
+
+                ShizukuConnectionStatus.ERROR -> {
+                    Button(
+                        onClick = onRefresh,
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = ElectricCyan,
+                            contentColor = Obsidian
+                        )
+                    ) {
+                        Text("Retry connection check", fontWeight = FontWeight.Bold)
+                    }
+                }
+
+                ShizukuConnectionStatus.CHECKING,
+                ShizukuConnectionStatus.REQUESTING_PERMISSION,
+                ShizukuConnectionStatus.READY -> Unit
+            }
+
+            TextButton(
+                onClick = onRefresh,
+                modifier = Modifier.align(Alignment.End)
+            ) {
+                Text("Refresh status", color = MutedText)
+            }
         }
     }
 }
@@ -309,4 +414,35 @@ private fun FeatureCard(
             )
         }
     }
+}
+
+private fun ShizukuConnectionStatus.badgeLabel(): String = when (this) {
+    ShizukuConnectionStatus.CHECKING -> "CHECKING"
+    ShizukuConnectionStatus.SERVICE_NOT_RUNNING -> "SERVICE OFF"
+    ShizukuConnectionStatus.PERMISSION_REQUIRED -> "GRANT ACCESS"
+    ShizukuConnectionStatus.REQUESTING_PERMISSION -> "WAITING"
+    ShizukuConnectionStatus.READY -> "SHIZUKU READY"
+    ShizukuConnectionStatus.UNSUPPORTED_API -> "UPDATE REQUIRED"
+    ShizukuConnectionStatus.ERROR -> "CONNECTION ERROR"
+}
+
+private fun ShizukuConnectionStatus.badgeColor(): Color = when (this) {
+    ShizukuConnectionStatus.READY -> Emerald
+    ShizukuConnectionStatus.CHECKING,
+    ShizukuConnectionStatus.PERMISSION_REQUIRED,
+    ShizukuConnectionStatus.REQUESTING_PERMISSION -> Amber
+    ShizukuConnectionStatus.SERVICE_NOT_RUNNING,
+    ShizukuConnectionStatus.UNSUPPORTED_API,
+    ShizukuConnectionStatus.ERROR -> Color(0xFFFF6470)
+}
+
+private fun ShizukuConnectionState.connectionDetail(): String {
+    val privilegeLabel = when (privilege) {
+        ShizukuPrivilege.ADB -> "ADB / Shell"
+        ShizukuPrivilege.ROOT -> "Root"
+        ShizukuPrivilege.UNKNOWN, null -> "Unknown"
+    }
+    val uidLabel = serverUid?.let { "UID $it" } ?: "UID unavailable"
+    val versionLabel = serverVersion?.let { "API $it" } ?: "API unavailable"
+    return "$privilegeLabel · $uidLabel · $versionLabel"
 }

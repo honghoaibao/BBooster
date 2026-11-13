@@ -5,8 +5,9 @@ Native Android Game Booster built with Kotlin and Jetpack Compose.
 ## Project status
 
 - Phase 0: repository and build-tool baseline selected.
-- Phase 1: Android skeleton and manual GitHub Actions CI.
-- Later phases: Shizuku integration, command engine, device telemetry, optimization pipeline, recovery, overlay, and release hardening.
+- Phase 1: Android foundation and manual GitHub Actions CI.
+- Phase 2: Shizuku Binder detection, permission flow, and Dashboard status.
+- Later phases: Shizuku UserService command bridge, device telemetry, optimization pipeline, recovery, overlay, and release hardening.
 
 ## Technical baseline
 
@@ -20,8 +21,7 @@ Native Android Game Booster built with Kotlin and Jetpack Compose.
 | compileSdk / targetSdk | 36 |
 | minSdk | 26 (Android 8.0) |
 | Application ID | `com.honghoaibao.bbooster` |
-
-The project intentionally starts without Shizuku commands or elevated permissions. Those are introduced in later phases with explicit safety checks and recovery.
+| Shizuku API / Provider | 13.1.5 |
 
 ## Build with GitHub Actions
 
@@ -32,17 +32,19 @@ The project intentionally starts without Shizuku commands or elevated permission
 
 The workflow is manual-only during early development to avoid unnecessary runs.
 
-## Local build
+## Shizuku setup
 
-The CI workflow provisions Gradle 8.13 and JDK 17. Run the following commands in an environment with Android SDK Platform 36 installed:
+1. Install Shizuku and start its service using the setup method supported by the device.
+2. Open BBooster and refresh the connection status.
+3. Grant BBooster permission from the Shizuku prompt.
+4. Confirm the Dashboard reports **Shizuku Ready** and displays the active privilege identity.
 
-```bash
-gradle testDebugUnitTest lintDebug assembleDebug
-```
+On non-rooted devices, Shizuku uses the ADB/shell identity. The service may need to be started again after a device reboot.
 
-## Safety and implementation notes
+## Safety boundary for Phase 2
 
-- No root access is required or assumed.
-- Shizuku integration is not present in Phase 1.
-- The app does not force-stop, suspend, or modify other apps in this phase.
-- Future system changes must be tracked and restored to their original values.
+- This phase only detects the Shizuku Binder and handles the app permission request.
+- It does not execute shell commands.
+- It does not force-stop, suspend, restrict, or modify other applications.
+- It does not change device settings.
+- Command execution will be added separately through a Shizuku UserService rather than the deprecated `newProcess()` API.
