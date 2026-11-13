@@ -372,6 +372,14 @@ private fun CommandEngineCard(
                     fontSize = 12.sp,
                     lineHeight = 17.sp
                 )
+                state.errorDetail?.takeIf(String::isNotBlank)?.let { detail ->
+                    Text(
+                        stringResource(R.string.command_error_detail, detail),
+                        color = MutedText,
+                        fontSize = 10.sp,
+                        lineHeight = 14.sp
+                    )
+                }
             }
             state.lastResult?.let { DiagnosticResult(it) }
 
@@ -591,6 +599,7 @@ private fun ShizukuConnectionState.connectionDetail(): String {
 @Composable
 private fun CommandEngineError.localizedMessage(): String = when (this) {
     CommandEngineError.SHIZUKU_UNAVAILABLE -> stringResource(R.string.command_error_shizuku)
+    CommandEngineError.BIND_FAILED -> stringResource(R.string.command_error_bind)
     CommandEngineError.PERMISSION_REQUIRED -> stringResource(R.string.command_error_permission)
     CommandEngineError.BIND_TIMEOUT -> stringResource(R.string.command_error_timeout)
     CommandEngineError.SERVICE_DISCONNECTED -> stringResource(R.string.command_error_disconnected)
