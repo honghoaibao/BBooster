@@ -39,7 +39,12 @@ class ShizukuCommandEngine(context: Context) {
     private val mutableState = MutableStateFlow(CommandEngineState())
     val state: StateFlow<CommandEngineState> = mutableState.asStateFlow()
 
-    private val serviceFlow = MutableStateFlow<IUserService?>(null)
+    private sealed interface BindingOutcome {
+        data class Connected(val service: IUserService) : BindingOutcome
+        data class Failed(val detail: String) : BindingOutcome
+    }
+
+    private val bindingOutcomeFlow = MutableStateFlow<BindingOutcome?>(null)
     private var remoteService: IUserService? = null
     private var bindingRequested = false
 
@@ -47,7 +52,11 @@ class ShizukuCommandEngine(context: Context) {
         override fun onServiceConnected(name: ComponentName?, service: IBinder?) {
             val connectedService = service?.let { IUserService.Stub.asInterface(it) }
             remoteService = connectedService
-            serviceFlow.value = connectedService
+            bindingOutcomeFlow.value = if (connectedService != null) {
+                BindingOutcome.Connected(connectedService)
+            } else {
+                BindingOutcome.Failed("Shizuku delivered a null UserService binder.")
+            }
             mutableState.value = mutableState.value.copy(
                 serviceStatus = if (connectedService != null) {
                     CommandServiceStatus.READY
@@ -64,7 +73,7 @@ class ShizukuCommandEngine(context: Context) {
 
         override fun onServiceDisconnected(name: ComponentName?) {
             remoteService = null
-            serviceFlow.value = null
+            bindingOutcomeFlow.value = BindingOutcome.Failed("UserService disconnected before diagnostics completed.")
             bindingRequested = false
             mutableState.value = mutableState.value.copy(
                 serviceStatus = CommandServiceStatus.DISCONNECTED,
@@ -78,7 +87,8 @@ class ShizukuCommandEngine(context: Context) {
         mutableState.value = mutableState.value.copy(
             isRunning = true,
             lastResult = null,
-            error = null
+            error = null,
+            errorDetail = null
         )
 
         try {
@@ -131,11 +141,12 @@ class ShizukuCommandEngine(context: Context) {
                 errorDetail = null
             )
         } catch (_: TimeoutCancellationException) {
+            resetUserServiceBinding()
             mutableState.value = mutableState.value.copy(
                 serviceStatus = CommandServiceStatus.ERROR,
                 isRunning = false,
                 error = CommandEngineError.BIND_TIMEOUT,
-                errorDetail = null
+                errorDetail = "No UserService connection callback within ${BIND_TIMEOUT_MS} ms; pending bind was cleared."
             )
         } catch (cancelled: CancellationException) {
             mutableState.value = mutableState.value.copy(isRunning = false)
@@ -151,23 +162,27 @@ class ShizukuCommandEngine(context: Context) {
     }
 
     fun unbind() {
+        resetUserServiceBinding()
+        mutableState.value = mutableState.value.copy(
+            serviceStatus = CommandServiceStatus.DISCONNECTED,
+            isRunning = false,
+            errorDetail = null
+        )
+    }
+
+    private fun resetUserServiceBinding() {
         if (bindingRequested) {
             try {
                 if (Shizuku.pingBinder()) {
                     Shizuku.unbindUserService(userServiceArgs, serviceConnection, true)
                 }
             } catch (_: Exception) {
-                // Shizuku may already be stopped.
+                // Shizuku may already be stopped or the bind may not have completed.
             }
         }
-
         bindingRequested = false
         remoteService = null
-        serviceFlow.value = null
-        mutableState.value = mutableState.value.copy(
-            serviceStatus = CommandServiceStatus.DISCONNECTED,
-            isRunning = false
-        )
+        bindingOutcomeFlow.value = null
     }
 
     private suspend fun awaitService(): IUserService {
@@ -182,8 +197,10 @@ class ShizukuCommandEngine(context: Context) {
 
         mutableState.value = mutableState.value.copy(
             serviceStatus = CommandServiceStatus.BINDING,
-            error = null
+            error = null,
+            errorDetail = null
         )
+        bindingOutcomeFlow.value = null
 
         if (!bindingRequested) {
             bindingRequested = true
@@ -195,8 +212,13 @@ class ShizukuCommandEngine(context: Context) {
             }
         }
 
-        return withTimeout(BIND_TIMEOUT_MS) {
-            serviceFlow.filterNotNull().first()
+        return when (val outcome = withTimeout(BIND_TIMEOUT_MS) {
+            bindingOutcomeFlow.filterNotNull().first()
+        }) {
+            is BindingOutcome.Connected -> outcome.service
+            is BindingOutcome.Failed -> throw UserServiceBindException(
+                IllegalStateException(outcome.detail)
+            )
         }
     }
 
@@ -261,7 +283,7 @@ class ShizukuCommandEngine(context: Context) {
 
     private companion object {
         const val USER_SERVICE_TAG = "bbooster-readonly-command-service"
-        const val USER_SERVICE_VERSION = 1
+        const val USER_SERVICE_VERSION = 2
         const val USER_SERVICE_PROCESS_SUFFIX = "bbooster"
         const val BIND_TIMEOUT_MS = 12_000L
         const val COMMAND_TIMEOUT_MS = 8_000L
