@@ -49,7 +49,9 @@
     <string name="command_failed">Một lệnh kiểm tra đã thất bại</string>
     <string name="command_timed_out">Lệnh kiểm tra đã hết thời gian chờ</string>
     <string name="command_exit_code">Mã thoát: %1$d</string>
-    <string name="command_error_shizuku">Shizuku chưa khả dụng. Hãy khởi động dịch vụ rồi thử lại.</string>
+    <string name="command_error_shizuku">Không tìm thấy Shizuku Binder. Hãy kiểm tra dịch vụ Shizuku.</string>
+    <string name="command_error_bind">BBooster không thể khởi chạy hoặc kết nối Shizuku UserService.</string>
+    <string name="command_error_detail">Chi tiết kỹ thuật: %1$s</string>
     <string name="command_error_permission">BBooster chưa được cấp quyền Shizuku.</string>
     <string name="command_error_timeout">Kết nối UserService đã hết thời gian chờ.</string>
     <string name="command_error_disconnected">UserService đã ngắt kết nối. Hãy thử lại.</string>
