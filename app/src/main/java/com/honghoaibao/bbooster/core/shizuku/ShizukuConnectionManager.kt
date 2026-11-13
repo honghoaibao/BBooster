@@ -6,12 +6,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import rikka.shizuku.Shizuku
 
-/**
- * Owns the app-side Shizuku Binder and permission lifecycle.
- *
- * This class deliberately does not execute shell commands. Command execution
- * belongs to a later phase and will use a supported Shizuku UserService.
- */
 class ShizukuConnectionManager {
 
     companion object {
@@ -29,16 +23,13 @@ class ShizukuConnectionManager {
 
     private val binderDeadListener = Shizuku.OnBinderDeadListener {
         mutableState.value = ShizukuConnectionState(
-            status = ShizukuConnectionStatus.SERVICE_NOT_RUNNING,
-            message = "The Shizuku Binder disconnected."
+            status = ShizukuConnectionStatus.SERVICE_NOT_RUNNING
         )
     }
 
     private val permissionResultListener =
         Shizuku.OnRequestPermissionResultListener { requestCode, _ ->
-            if (requestCode == PERMISSION_REQUEST_CODE) {
-                refresh()
-            }
+            if (requestCode == PERMISSION_REQUEST_CODE) refresh()
         }
 
     fun registerListeners() {
@@ -66,8 +57,7 @@ class ShizukuConnectionManager {
     fun refresh() {
         if (!Shizuku.pingBinder()) {
             mutableState.value = ShizukuConnectionState(
-                status = ShizukuConnectionStatus.SERVICE_NOT_RUNNING,
-                message = "No active Shizuku Binder was found."
+                status = ShizukuConnectionStatus.SERVICE_NOT_RUNNING
             )
             return
         }
@@ -75,16 +65,14 @@ class ShizukuConnectionManager {
         try {
             if (Shizuku.isPreV11()) {
                 mutableState.value = ShizukuConnectionState(
-                    status = ShizukuConnectionStatus.UNSUPPORTED_API,
-                    message = "This Shizuku service is too old. Update Shizuku and start it again."
+                    status = ShizukuConnectionStatus.UNSUPPORTED_API
                 )
                 return
             }
 
             if (Shizuku.checkSelfPermission() != PackageManager.PERMISSION_GRANTED) {
                 mutableState.value = ShizukuConnectionState(
-                    status = ShizukuConnectionStatus.PERMISSION_REQUIRED,
-                    message = "Shizuku is running. BBooster still needs your permission."
+                    status = ShizukuConnectionStatus.PERMISSION_REQUIRED
                 )
                 return
             }
@@ -105,18 +93,15 @@ class ShizukuConnectionManager {
             )
         } catch (_: SecurityException) {
             mutableState.value = ShizukuConnectionState(
-                status = ShizukuConnectionStatus.PERMISSION_REQUIRED,
-                message = "BBooster does not have Shizuku permission yet."
+                status = ShizukuConnectionStatus.PERMISSION_REQUIRED
             )
         } catch (_: IllegalStateException) {
             mutableState.value = ShizukuConnectionState(
-                status = ShizukuConnectionStatus.SERVICE_NOT_RUNNING,
-                message = "The Shizuku Binder is not available. Start the service and retry."
+                status = ShizukuConnectionStatus.SERVICE_NOT_RUNNING
             )
         } catch (_: Exception) {
             mutableState.value = ShizukuConnectionState(
-                status = ShizukuConnectionStatus.ERROR,
-                message = "Could not read the Shizuku connection state."
+                status = ShizukuConnectionStatus.ERROR
             )
         }
     }
@@ -132,15 +117,13 @@ class ShizukuConnectionManager {
                 refresh()
                 return
             }
-
             if (Shizuku.checkSelfPermission() == PackageManager.PERMISSION_GRANTED) {
                 refresh()
                 return
             }
 
             mutableState.value = ShizukuConnectionState(
-                status = ShizukuConnectionStatus.REQUESTING_PERMISSION,
-                message = "Waiting for the Shizuku permission decision."
+                status = ShizukuConnectionStatus.REQUESTING_PERMISSION
             )
             Shizuku.requestPermission(PERMISSION_REQUEST_CODE)
         } catch (_: SecurityException) {
@@ -149,8 +132,7 @@ class ShizukuConnectionManager {
             refresh()
         } catch (_: Exception) {
             mutableState.value = ShizukuConnectionState(
-                status = ShizukuConnectionStatus.ERROR,
-                message = "Could not request Shizuku permission."
+                status = ShizukuConnectionStatus.ERROR
             )
         }
     }

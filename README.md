@@ -6,8 +6,9 @@ Native Android Game Booster built with Kotlin and Jetpack Compose.
 
 - Phase 0: repository and build-tool baseline selected.
 - Phase 1: Android foundation and manual GitHub Actions CI.
-- Phase 2: Shizuku Binder detection, permission flow, and Dashboard status.
-- Later phases: Shizuku UserService command bridge, device telemetry, optimization pipeline, recovery, overlay, and release hardening.
+- Phase 2: Shizuku Binder detection and permission flow.
+- Phase 3: Shizuku UserService bridge, read-only diagnostic command engine, execution timeouts, and Vietnamese/English localization.
+- Later phases: device telemetry, carefully scoped optimization actions, recovery, overlay, and release hardening.
 
 ## Technical baseline
 
@@ -22,6 +23,7 @@ Native Android Game Booster built with Kotlin and Jetpack Compose.
 | minSdk | 26 (Android 8.0) |
 | Application ID | `com.honghoaibao.bbooster` |
 | Shizuku API / Provider | 13.1.5 |
+| AppCompat | 1.7.1 |
 
 ## Build with GitHub Actions
 
@@ -32,19 +34,25 @@ Native Android Game Booster built with Kotlin and Jetpack Compose.
 
 The workflow is manual-only during early development to avoid unnecessary runs.
 
+## Languages
+
+BBooster includes English (default resources) and Vietnamese resources. Users can switch language inside the app. On Android 13 and later, Android's per-app language setting is generated from the supported resource locales. AppCompat stores the app language choice on older Android versions.
+
 ## Shizuku setup
 
 1. Install Shizuku and start its service using the setup method supported by the device.
 2. Open BBooster and refresh the connection status.
 3. Grant BBooster permission from the Shizuku prompt.
-4. Confirm the Dashboard reports **Shizuku Ready** and displays the active privilege identity.
+4. Confirm the Dashboard reports **Shizuku Ready**.
 
 On non-rooted devices, Shizuku uses the ADB/shell identity. The service may need to be started again after a device reboot.
 
-## Safety boundary for Phase 2
+## Phase 3 command safety
 
-- This phase only detects the Shizuku Binder and handles the app permission request.
-- It does not execute shell commands.
-- It does not force-stop, suspend, restrict, or modify other applications.
-- It does not change device settings.
-- Command execution will be added separately through a Shizuku UserService rather than the deprecated `newProcess()` API.
+- The UserService runs in a separate Shizuku process.
+- The command bridge accepts fixed action IDs only; arbitrary command strings and shell fragments are rejected.
+- Current actions are read-only: identify the service UID and read Android release/API properties.
+- Every process has a bounded timeout and returns exit code, stdout, stderr, and timeout status.
+- This phase does not force-stop, suspend, restrict, or modify other applications.
+- This phase does not change device settings.
+- Future write operations require their own explicit action definitions, validation, and recovery design.
