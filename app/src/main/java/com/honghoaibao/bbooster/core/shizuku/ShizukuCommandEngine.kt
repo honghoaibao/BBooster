@@ -107,32 +107,45 @@ class ShizukuCommandEngine(context: Context) {
                 lastResult = combined,
                 error = null
             )
+        } catch (_: ShizukuBinderUnavailableException) {
+            mutableState.value = mutableState.value.copy(
+                serviceStatus = CommandServiceStatus.ERROR,
+                isRunning = false,
+                error = CommandEngineError.SHIZUKU_UNAVAILABLE,
+                errorDetail = null
+            )
+        } catch (bindError: UserServiceBindException) {
+            mutableState.value = mutableState.value.copy(
+                serviceStatus = CommandServiceStatus.ERROR,
+                isRunning = false,
+                error = CommandEngineError.BIND_FAILED,
+                errorDetail = bindError.cause?.let { cause ->
+                    "${cause.javaClass.simpleName}: ${cause.message.orEmpty()}"
+                } ?: bindError.message
+            )
         } catch (_: SecurityException) {
             mutableState.value = mutableState.value.copy(
                 serviceStatus = CommandServiceStatus.ERROR,
                 isRunning = false,
-                error = CommandEngineError.PERMISSION_REQUIRED
-            )
-        } catch (_: IllegalStateException) {
-            mutableState.value = mutableState.value.copy(
-                serviceStatus = CommandServiceStatus.ERROR,
-                isRunning = false,
-                error = CommandEngineError.SHIZUKU_UNAVAILABLE
+                error = CommandEngineError.PERMISSION_REQUIRED,
+                errorDetail = null
             )
         } catch (_: TimeoutCancellationException) {
             mutableState.value = mutableState.value.copy(
                 serviceStatus = CommandServiceStatus.ERROR,
                 isRunning = false,
-                error = CommandEngineError.BIND_TIMEOUT
+                error = CommandEngineError.BIND_TIMEOUT,
+                errorDetail = null
             )
         } catch (cancelled: CancellationException) {
             mutableState.value = mutableState.value.copy(isRunning = false)
             throw cancelled
-        } catch (_: Exception) {
+        } catch (error: Exception) {
             mutableState.value = mutableState.value.copy(
                 serviceStatus = CommandServiceStatus.ERROR,
                 isRunning = false,
-                error = CommandEngineError.REMOTE_CALL_FAILED
+                error = CommandEngineError.REMOTE_CALL_FAILED,
+                errorDetail = error.javaClass.simpleName + ": " + error.message.orEmpty()
             )
         }
     }
@@ -161,7 +174,7 @@ class ShizukuCommandEngine(context: Context) {
         remoteService?.let { return it }
 
         if (!Shizuku.pingBinder()) {
-            throw IllegalStateException("Shizuku Binder is unavailable.")
+            throw ShizukuBinderUnavailableException()
         }
         if (Shizuku.checkSelfPermission() != PackageManager.PERMISSION_GRANTED) {
             throw SecurityException("Shizuku permission is not granted.")
@@ -178,7 +191,7 @@ class ShizukuCommandEngine(context: Context) {
                 Shizuku.bindUserService(userServiceArgs, serviceConnection)
             } catch (error: Exception) {
                 bindingRequested = false
-                throw error
+                throw UserServiceBindException(error)
             }
         }
 
@@ -241,6 +254,10 @@ class ShizukuCommandEngine(context: Context) {
             }
         }
     }
+
+    private class ShizukuBinderUnavailableException : IllegalStateException()
+
+    private class UserServiceBindException(cause: Throwable) : Exception(cause)
 
     private companion object {
         const val USER_SERVICE_TAG = "bbooster-readonly-command-service"
