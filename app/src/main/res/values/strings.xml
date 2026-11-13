@@ -49,7 +49,9 @@
     <string name="command_failed">A diagnostic command failed</string>
     <string name="command_timed_out">Diagnostic timed out</string>
     <string name="command_exit_code">Exit code: %1$d</string>
-    <string name="command_error_shizuku">Shizuku is unavailable. Start its service and try again.</string>
+    <string name="command_error_shizuku">Shizuku Binder is unavailable. Check that its service is running.</string>
+    <string name="command_error_bind">BBooster could not start or bind its Shizuku UserService.</string>
+    <string name="command_error_detail">Technical detail: %1$s</string>
     <string name="command_error_permission">BBooster does not have Shizuku permission.</string>
     <string name="command_error_timeout">The UserService connection timed out.</string>
     <string name="command_error_disconnected">The UserService disconnected. Try again.</string>
