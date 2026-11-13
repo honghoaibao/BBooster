@@ -15,7 +15,7 @@ Native Android Game Booster built with Kotlin and Jetpack Compose.
 | Android Gradle Plugin | 8.13.2 |
 | Gradle | 8.13 |
 | Kotlin | 2.3.21 |
-| Compose BOM | 2026.09.00 |
+| Compose BOM | 2026.06.01 |
 | JDK | 17 |
 | compileSdk / targetSdk | 36 |
 | minSdk | 26 (Android 8.0) |
