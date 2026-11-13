@@ -4,7 +4,8 @@ data class CommandEngineState(
     val serviceStatus: CommandServiceStatus = CommandServiceStatus.DISCONNECTED,
     val isRunning: Boolean = false,
     val lastResult: CommandBatchResult? = null,
-    val error: CommandEngineError? = null
+    val error: CommandEngineError? = null,
+    val errorDetail: String? = null
 )
 
 enum class CommandServiceStatus {
@@ -16,6 +17,7 @@ enum class CommandServiceStatus {
 
 enum class CommandEngineError {
     SHIZUKU_UNAVAILABLE,
+    BIND_FAILED,
     PERMISSION_REQUIRED,
     BIND_TIMEOUT,
     SERVICE_DISCONNECTED,
