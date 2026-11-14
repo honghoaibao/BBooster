@@ -126,44 +126,50 @@ class ShizukuTransportManager internal constructor(
     ): TransportManagerState = executionMutex.withLock {
         if (isClosed) return@withLock mutableState.value
 
-        val shouldProbeUserService =
-            forceUserServiceProbe || clockMs() >= retryUserServiceAtMs
+        mutableState.update { it.copy(isRefreshing = true) }
+        try {
+            val shouldProbeUserService =
+                forceUserServiceProbe || clockMs() >= retryUserServiceAtMs
 
-        val (userStatus, directStatus) = coroutineScope {
-            val user = async {
-                if (shouldProbeUserService) {
-                    refreshSafely(userServiceTransport)
-                } else {
-                    userServiceTransport.status.value
+            val (userStatus, directStatus) = coroutineScope {
+                val user = async {
+                    if (shouldProbeUserService) {
+                        refreshSafely(userServiceTransport)
+                    } else {
+                        userServiceTransport.status.value
+                    }
                 }
+                val direct = async { refreshSafely(directProcessTransport) }
+                user.await() to direct.await()
             }
-            val direct = async { refreshSafely(directProcessTransport) }
-            user.await() to direct.await()
-        }
 
-        if (shouldProbeUserService) {
-            retryUserServiceAtMs = if (
-                userStatus.state == TransportAvailability.UNSUPPORTED ||
-                userStatus.state == TransportAvailability.DEGRADED
-            ) {
-                clockMs() + userServiceRetryDelayMs
-            } else {
-                0L
-            }
-        }
-        mutableState.value = mutableState.value.copy(
-            userService = visibleUserServiceStatus(userStatus),
-            directProcess = directStatus,
-            userServiceRetryAtMs = retryUserServiceAtMs.takeIf { it > clockMs() },
-            lastFallbackReason = if (shouldProbeUserService) {
-                userStatus.detail.takeIf {
+            if (shouldProbeUserService) {
+                retryUserServiceAtMs = if (
                     userStatus.state == TransportAvailability.UNSUPPORTED ||
-                        userStatus.state == TransportAvailability.DEGRADED
+                    userStatus.state == TransportAvailability.DEGRADED
+                ) {
+                    clockMs() + userServiceRetryDelayMs
+                } else {
+                    0L
                 }
-            } else {
-                mutableState.value.lastFallbackReason
             }
-        )
+            mutableState.value = mutableState.value.copy(
+                userService = visibleUserServiceStatus(userStatus),
+                directProcess = directStatus,
+                userServiceRetryAtMs = retryUserServiceAtMs.takeIf { it > clockMs() },
+                lastFallbackReason = if (shouldProbeUserService) {
+                    userStatus.detail.takeIf {
+                        userStatus.state == TransportAvailability.UNSUPPORTED ||
+                            userStatus.state == TransportAvailability.DEGRADED
+                    }
+                } else {
+                    mutableState.value.lastFallbackReason
+                }
+            )
+        } finally {
+            mutableState.update { it.copy(isRefreshing = false) }
+        }
+
         mutableState.value
     }
 
@@ -387,6 +393,7 @@ class ShizukuTransportManager internal constructor(
         }
         mutableState.value = mutableState.value.copy(
             isExecuting = false,
+            isRefreshing = false,
             userService = userServiceTransport.status.value,
             directProcess = directProcessTransport.status.value,
             activeTransport = null
@@ -435,6 +442,7 @@ data class TransportManagerState(
         state = TransportAvailability.CHECKING
     ),
     val isExecuting: Boolean = false,
+    val isRefreshing: Boolean = false,
     val activeTransport: CommandTransportType? = null,
     val lastResult: CommandResult? = null,
     val userServiceRetryAtMs: Long? = null,
