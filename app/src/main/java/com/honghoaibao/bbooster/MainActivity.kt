@@ -55,7 +55,7 @@ class MainActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
-        refreshConnections()
+        refreshConnections(forceUserServiceProbe = false)
     }
 
     override fun onStop() {
@@ -76,9 +76,13 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun refreshConnections() {
+        refreshConnections(forceUserServiceProbe = true)
+    }
+
+    private fun refreshConnections(forceUserServiceProbe: Boolean) {
         shizukuConnectionManager.refresh()
         lifecycleScope.launch {
-            transportManager.refresh()
+            transportManager.refresh(forceUserServiceProbe = forceUserServiceProbe)
         }
     }
 
