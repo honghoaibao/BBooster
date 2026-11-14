@@ -23,11 +23,15 @@ data class CommandResult(
         get() = status == CommandExecutionStatus.COMPLETED && exitCode == 0
 
     /**
-     * A transport fallback is safe only when the current attempt is known not
-     * to have dispatched the command. UNKNOWN must never be treated as safe.
+     * A fallback is safe only when execution definitely did not start.
+     * An unknown dispatch state must never trigger automatic re-execution.
      */
     val canSafelyFallback: Boolean
-        get() = dispatchState == CommandDispatchState.NOT_DISPATCHED
+        get() = dispatchState == CommandDispatchState.NOT_DISPATCHED &&
+            status in setOf(
+                CommandExecutionStatus.NOT_STARTED,
+                CommandExecutionStatus.REJECTED
+            )
 
     init {
         require(commandId.isNotBlank()) { "Command ID must not be blank." }
@@ -64,6 +68,7 @@ enum class CommandFailureCode {
     REMOTE_CALL_FAILED,
     COMMAND_TIMED_OUT,
     COMMAND_REJECTED,
+    NON_ZERO_EXIT,
     OUTPUT_LIMIT_EXCEEDED,
     INTERNAL_ERROR
 }

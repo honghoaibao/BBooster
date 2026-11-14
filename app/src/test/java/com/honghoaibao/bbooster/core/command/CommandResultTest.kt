@@ -41,6 +41,13 @@ class CommandResultTest {
                 exitCode = null
             ).canSafelyFallback
         )
+        assertTrue(
+            result(
+                status = CommandExecutionStatus.REJECTED,
+                dispatchState = CommandDispatchState.NOT_DISPATCHED,
+                exitCode = null
+            ).canSafelyFallback
+        )
 
         assertFalse(
             result(
@@ -54,6 +61,13 @@ class CommandResultTest {
                 status = CommandExecutionStatus.TIMED_OUT,
                 dispatchState = CommandDispatchState.DISPATCHED,
                 exitCode = null
+            ).canSafelyFallback
+        )
+        assertFalse(
+            result(
+                status = CommandExecutionStatus.COMPLETED,
+                dispatchState = CommandDispatchState.NOT_DISPATCHED,
+                exitCode = 0
             ).canSafelyFallback
         )
     }
