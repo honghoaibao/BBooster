@@ -237,6 +237,51 @@ class ShizukuTransportManagerTest {
     }
 
     @Test
+    fun lifecycleRefreshDoesNotResetUserServiceCooldown() = runBlocking {
+        var now = 10_000L
+        val user = FakeTransport(CommandTransportType.USER_SERVICE) { command ->
+            success(command, CommandTransportType.USER_SERVICE)
+        }
+        user.setAvailability(TransportAvailability.DEGRADED)
+        user.results.add(
+            notDispatched(
+                requireNotNull(CommandRegistry.find("caller_identity")),
+                CommandTransportType.USER_SERVICE
+            )
+        )
+        user.results.add(
+            success(
+                requireNotNull(CommandRegistry.find("caller_identity")),
+                CommandTransportType.USER_SERVICE
+            )
+        )
+        val direct = FakeTransport(CommandTransportType.DIRECT_PROCESS) { command ->
+            success(command, CommandTransportType.DIRECT_PROCESS)
+        }
+        val manager = ShizukuTransportManager(
+            userServiceTransport = user,
+            directProcessTransport = direct,
+            authorizationContextProvider = { grantedContext() },
+            clockMs = { now },
+            userServiceRetryDelayMs = 5_000L
+        )
+
+        val first = manager.execute("caller_identity")
+        now = 11_000L
+        manager.refresh(forceUserServiceProbe = false)
+        val second = manager.execute("caller_identity")
+        now = 16_000L
+        val third = manager.execute("caller_identity")
+
+        assertEquals(CommandTransportType.DIRECT_PROCESS, first.transport)
+        assertEquals(CommandTransportType.DIRECT_PROCESS, second.transport)
+        assertEquals(CommandTransportType.USER_SERVICE, third.transport)
+        assertEquals(2, user.executeCount)
+        assertEquals(2, direct.executeCount)
+        manager.close()
+    }
+
+    @Test
     fun unknownCommandIsRejectedWithoutCallingTransports() = runBlocking {
         val user = FakeTransport(CommandTransportType.USER_SERVICE) { command ->
             success(command, CommandTransportType.USER_SERVICE)
