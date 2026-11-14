@@ -92,5 +92,4 @@
     <string name="session_recovery">Khôi phục phiên</string>
     <string name="session_recovery_description">Theo dõi thay đổi tạm thời và khôi phục cài đặt ban đầu của thiết bị.</string>
     <string name="soon">SẮP CÓ</string>
-    <string name="version_footer">SHIZUKU TRANSPORT ENGINE · v0.3.5</string>
 </resources>
