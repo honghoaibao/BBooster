@@ -91,6 +91,7 @@ class UserServiceTransport(context: Context) : ShizukuTransport {
         }
 
         override fun onServiceDisconnected(name: ComponentName?) {
+            if (closed.get()) return
             remoteService = null
             bindingRequested = false
             bindingOutcome.value = BindingOutcome.Failed("UserService disconnected.")
