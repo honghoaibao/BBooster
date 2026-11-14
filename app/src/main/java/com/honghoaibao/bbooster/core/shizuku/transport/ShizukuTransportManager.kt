@@ -155,9 +155,13 @@ class ShizukuTransportManager internal constructor(
             userService = visibleUserServiceStatus(userStatus),
             directProcess = directStatus,
             userServiceRetryAtMs = retryUserServiceAtMs.takeIf { it > clockMs() },
-            lastFallbackReason = userStatus.detail.takeIf {
-                userStatus.state == TransportAvailability.UNSUPPORTED ||
-                    userStatus.state == TransportAvailability.DEGRADED
+            lastFallbackReason = if (shouldProbeUserService) {
+                userStatus.detail.takeIf {
+                    userStatus.state == TransportAvailability.UNSUPPORTED ||
+                        userStatus.state == TransportAvailability.DEGRADED
+                }
+            } else {
+                mutableState.value.lastFallbackReason
             }
         )
         mutableState.value
