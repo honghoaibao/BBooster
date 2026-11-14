@@ -2,7 +2,6 @@ package com.honghoaibao.bbooster.core.shizuku.transport
 
 import android.content.Context
 import android.content.pm.PackageManager
-import android.os.SystemClock
 import com.honghoaibao.bbooster.core.command.CommandAuthorization
 import com.honghoaibao.bbooster.core.command.CommandDispatchState
 import com.honghoaibao.bbooster.core.command.CommandExecutionStatus
@@ -44,7 +43,7 @@ class ShizukuTransportManager internal constructor(
     private val userServiceTransport: ShizukuTransport,
     private val directProcessTransport: ShizukuTransport,
     private val authorizationContextProvider: () -> CommandPolicyContext,
-    private val clockMs: () -> Long = { SystemClock.elapsedRealtime() },
+    private val clockMs: () -> Long = { System.nanoTime() / NANOS_PER_MILLISECOND },
     private val userServiceRetryDelayMs: Long = DEFAULT_USER_SERVICE_RETRY_DELAY_MS
 ) {
 
@@ -545,6 +544,7 @@ class ShizukuTransportManager internal constructor(
 
     private companion object {
         const val DEFAULT_USER_SERVICE_RETRY_DELAY_MS = 30_000L
+        const val NANOS_PER_MILLISECOND = 1_000_000L
     }
 }
 
