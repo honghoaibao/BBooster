@@ -20,6 +20,7 @@ import com.honghoaibao.bbooster.core.shizuku.remote.BBoosterUserService
 import com.honghoaibao.bbooster.core.shizuku.remote.ICommandCallback
 import com.honghoaibao.bbooster.core.shizuku.remote.IUserService
 import java.util.concurrent.atomic.AtomicBoolean
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -113,6 +114,8 @@ class UserServiceTransport(
         return try {
             awaitService()
             readyStatus().also { mutableStatus.value = it }
+        } catch (cancelled: CancellationException) {
+            throw cancelled
         } catch (error: ConnectionFailure) {
             unavailableStatus(error.availability, error.message.orEmpty())
                 .also { mutableStatus.value = it }
@@ -162,7 +165,13 @@ class UserServiceTransport(
 
             val service = try {
                 awaitService()
+            } catch (cancelled: CancellationException) {
+                throw cancelled
             } catch (error: ConnectionFailure) {
+                mutableStatus.value = unavailableStatus(
+                    error.availability,
+                    error.message.orEmpty()
+                )
                 return@withContext result(
                     command, CommandExecutionStatus.NOT_STARTED,
                     CommandDispatchState.NOT_DISPATCHED,
@@ -211,6 +220,8 @@ class UserServiceTransport(
                         }
                     }
                 )
+            } catch (cancelled: CancellationException) {
+                throw cancelled
             } catch (error: Exception) {
                 mutableStatus.value = unavailableStatus(
                     TransportAvailability.DEGRADED,
