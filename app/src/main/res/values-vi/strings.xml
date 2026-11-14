@@ -38,12 +38,12 @@
     <string name="open_shizuku">Mở Shizuku</string>
     <string name="retry_connection">Thử kiểm tra lại</string>
     <string name="refresh_status">Làm mới trạng thái</string>
-    <string name="command_engine_title">SHIZUKU USER SERVICE</string>
-    <string name="command_engine_description">Chạy một số kiểm tra chỉ đọc trong tiến trình riêng của Shizuku. Không thay đổi cài đặt thiết bị hoặc ứng dụng khác.</string>
+    <string name="command_engine_title">CÁC PHƯƠNG THỨC SHIZUKU</string>
+    <string name="command_engine_description">BBooster ưu tiên Shizuku UserService và chỉ chuyển sang Direct Process khi chắc chắn lệnh chưa được gửi. Chức năng kiểm tra hiện tại chỉ đọc dữ liệu.</string>
     <string name="command_binding">Đang kết nối Shizuku UserService…</string>
     <string name="command_service_ready">Đã kết nối UserService.</string>
     <string name="command_running">Đang chạy kiểm tra chỉ đọc…</string>
-    <string name="run_diagnostics">Kiểm tra kết nối</string>
+    <string name="run_diagnostics">Chạy kiểm tra chỉ đọc</string>
     <string name="command_connect_first">Hãy kết nối Shizuku và cấp quyền cho BBooster trước.</string>
     <string name="command_completed">Đã hoàn tất kiểm tra</string>
     <string name="command_failed">Một lệnh kiểm tra đã thất bại</string>
@@ -56,6 +56,24 @@
     <string name="command_error_timeout">Kết nối UserService đã hết thời gian chờ.</string>
     <string name="command_error_disconnected">UserService đã ngắt kết nối. Hãy thử lại.</string>
     <string name="command_error_remote">Không thể hoàn tất yêu cầu kiểm tra.</string>
+    <string name="transport_user_service">UserService</string>
+    <string name="transport_direct_process">Direct Process</string>
+    <string name="transport_checking">Đang kiểm tra</string>
+    <string name="transport_ready">Sẵn sàng</string>
+    <string name="transport_starting">Đang khởi động</string>
+    <string name="transport_degraded">Không ổn định · có dự phòng</string>
+    <string name="transport_unavailable">Không khả dụng</string>
+    <string name="transport_unsupported">Không được hỗ trợ</string>
+    <string name="transport_fallback_reason">Đang dùng phương thức dự phòng: %1$s</string>
+    <string name="transport_not_selected">Chưa chọn phương thức</string>
+    <string name="command_used_transport">Đã thực thi qua: %1$s</string>
+    <string name="command_not_started">Lệnh chưa được khởi chạy</string>
+    <string name="command_rejected">Lệnh bị từ chối</string>
+    <string name="command_cancelled">Lệnh đã bị hủy</string>
+    <string name="command_interrupted">Lệnh bị gián đoạn</string>
+    <string name="command_unknown_result">Không xác định được kết quả thực thi</string>
+    <string name="command_output_truncated">Đầu ra đã được rút gọn theo giới hạn an toàn.</string>
+    <string name="version_footer">SHIZUKU TRANSPORT ENGINE · v0.3.5</string>
     <string name="language_title">Ngôn ngữ</string>
     <string name="language_english">Tiếng Anh</string>
     <string name="language_vietnamese">Tiếng Việt</string>
@@ -74,5 +92,5 @@
     <string name="session_recovery">Khôi phục phiên</string>
     <string name="session_recovery_description">Theo dõi thay đổi tạm thời và khôi phục cài đặt ban đầu của thiết bị.</string>
     <string name="soon">SẮP CÓ</string>
-    <string name="version_footer">SHIZUKU COMMAND ENGINE · v0.3.0</string>
+    <string name="version_footer">SHIZUKU TRANSPORT ENGINE · v0.3.5</string>
 </resources>
