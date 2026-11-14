@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.ServiceConnection
 import android.content.pm.PackageManager
 import android.os.IBinder
+import android.util.Log
 import com.honghoaibao.bbooster.BuildConfig
 import com.honghoaibao.bbooster.core.shizuku.remote.BBoosterUserService
 import com.honghoaibao.bbooster.core.shizuku.remote.ICommandCallback
@@ -49,6 +50,7 @@ class ShizukuCommandEngine(context: Context) {
 
     private val serviceConnection = object : ServiceConnection {
         override fun onServiceConnected(name: ComponentName?, service: IBinder?) {
+            Log.i(LOG_TAG, "UserService onServiceConnected; binderPresent=${service != null}")
             val connectedService = service?.let { IUserService.Stub.asInterface(it) }
             remoteService = connectedService
             bindingOutcomeFlow.value = if (connectedService != null) {
@@ -71,6 +73,7 @@ class ShizukuCommandEngine(context: Context) {
         }
 
         override fun onServiceDisconnected(name: ComponentName?) {
+            Log.w(LOG_TAG, "UserService disconnected.")
             remoteService = null
             bindingOutcomeFlow.value = BindingOutcome.Failed("UserService disconnected before diagnostics completed.")
             bindingRequested = false
@@ -188,6 +191,7 @@ class ShizukuCommandEngine(context: Context) {
         if (!bindingRequested) {
             bindingRequested = true
             try {
+                Log.i(LOG_TAG, "Requesting Shizuku UserService bind.")
                 Shizuku.bindUserService(userServiceArgs, serviceConnection)
             } catch (error: Exception) {
                 bindingRequested = false
@@ -272,6 +276,7 @@ class ShizukuCommandEngine(context: Context) {
     private class UserServiceBindException(cause: Throwable) : Exception(cause)
 
     private companion object {
+        const val LOG_TAG = "BBoosterShizuku"
         const val USER_SERVICE_TAG = "bbooster-readonly-command-service"
         const val USER_SERVICE_VERSION = 3
         const val USER_SERVICE_TEST_ACTION = "userservice_connection_test"

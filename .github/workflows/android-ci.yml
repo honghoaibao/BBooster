@@ -2,6 +2,11 @@ name: Android CI
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - 'app/src/main/java/com/honghoaibao/bbooster/core/shizuku/ShizukuCommandEngine.kt'
 
 permissions:
   contents: read
