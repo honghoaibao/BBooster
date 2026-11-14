@@ -38,7 +38,7 @@ class BBoosterUserService : IUserService.Stub {
             return
         }
 
-        val definition = actionId?.let(CommandRegistry::find)
+        val definition = actionId?.let { CommandRegistry.find(it) }
         if (definition == null ||
             CommandTransportType.USER_SERVICE !in definition.supportedTransports ||
             definition.executionMode != CommandExecutionMode.ONE_SHOT ||
