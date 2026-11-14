@@ -238,11 +238,17 @@ class UserServiceTransport(
 
             // A normal AIDL return means the request was dispatched. If its
             // callback is lost, do not replay it through another transport.
-            val response = withTimeoutOrNull(command.timeoutMs + CALLBACK_GRACE_MS) {
-                callbackResult.await()
+            val response = try {
+                withTimeoutOrNull(command.timeoutMs + CALLBACK_GRACE_MS) {
+                    callbackResult.await()
+                }
+            } catch (cancelled: CancellationException) {
+                callbackResult.cancel(cancelled)
+                throw cancelled
             }
 
             if (response == null) {
+                callbackResult.cancel()
                 mutableStatus.value = unavailableStatus(
                     TransportAvailability.DEGRADED,
                     "UserService accepted the command but did not return a callback."
