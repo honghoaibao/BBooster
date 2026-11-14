@@ -65,6 +65,12 @@ class UserServiceTransport(context: Context) : ShizukuTransport {
 
     private val serviceConnection = object : ServiceConnection {
         override fun onServiceConnected(name: ComponentName?, binder: IBinder?) {
+            if (closed.get()) {
+                if (safeBinderAvailable()) {
+                    runCatching { Shizuku.unbindUserService(userServiceArgs, serviceConnection, true) }
+                }
+                return
+            }
             val service = binder?.let { IUserService.Stub.asInterface(it) }
             remoteService = service
             if (service == null) bindingRequested = false
@@ -121,6 +127,16 @@ class UserServiceTransport(context: Context) : ShizukuTransport {
                     CommandDispatchState.NOT_DISPATCHED,
                     CommandFailureCode.COMMAND_REJECTED,
                     "Command is not registered.",
+                    startedAt
+                )
+            }
+
+            if (command.requiresConfirmation) {
+                return@withContext result(
+                    command, CommandExecutionStatus.REJECTED,
+                    CommandDispatchState.NOT_DISPATCHED,
+                    CommandFailureCode.USER_CONFIRMATION_REQUIRED,
+                    "This transport does not accept commands requiring explicit confirmation.",
                     startedAt
                 )
             }
