@@ -9,6 +9,7 @@ import com.honghoaibao.bbooster.core.command.CommandRegistry
 import com.honghoaibao.bbooster.core.command.CommandResult
 import com.honghoaibao.bbooster.core.command.CommandTransportType
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -392,6 +393,49 @@ class ShizukuTransportManagerTest {
     }
 
     @Test
+    fun recoveryProbeRunsAfterCooldownOnlyWhileForeground() = runBlocking {
+        val user = FakeTransport(CommandTransportType.USER_SERVICE) { command ->
+            notDispatched(command, CommandTransportType.USER_SERVICE)
+        }
+        user.setAvailability(TransportAvailability.DEGRADED)
+        user.refreshHandler = {
+            user.setAvailability(TransportAvailability.READY)
+            user.status.value
+        }
+        val direct = FakeTransport(CommandTransportType.DIRECT_PROCESS) { command ->
+            success(command, CommandTransportType.DIRECT_PROCESS)
+        }
+        val manager = ShizukuTransportManager(
+            userServiceTransport = user,
+            directProcessTransport = direct,
+            authorizationContextProvider = { grantedContext() },
+            clockMs = { System.nanoTime() / 1_000_000L },
+            userServiceRetryDelayMs = 100L
+        )
+
+        val first = manager.execute("caller_identity")
+        assertEquals(CommandTransportType.DIRECT_PROCESS, first.transport)
+
+        // Background managers keep the cooldown but do not wake Shizuku.
+        delay(150L)
+        assertEquals(0, user.refreshCount)
+
+        // Entering foreground schedules the overdue recovery probe.
+        manager.setForeground(true)
+        withTimeout(2_000L) {
+            manager.state.first {
+                it.userService.state == TransportAvailability.READY &&
+                    it.userServiceRetryAtMs == null
+            }
+        }
+
+        assertEquals(1, user.refreshCount)
+        assertNull(manager.state.value.lastFallbackReason)
+        manager.setForeground(false)
+        manager.close()
+    }
+
+    @Test
     fun unknownCommandIsRejectedWithoutCallingTransports() = runBlocking {
         val user = FakeTransport(CommandTransportType.USER_SERVICE) { command ->
             success(command, CommandTransportType.USER_SERVICE)
@@ -465,13 +509,21 @@ class ShizukuTransportManagerTest {
         override val status: StateFlow<TransportStatus> = mutableStatus.asStateFlow()
         var executeCount: Int = 0
             private set
+        var refreshCount: Int = 0
+            private set
+        var refreshHandler: (() -> TransportStatus)? = null
         val results = mutableListOf<CommandResult>()
 
         fun setAvailability(availability: TransportAvailability) {
             mutableStatus.value = mutableStatus.value.copy(state = availability)
         }
 
-        override suspend fun refresh(): TransportStatus = mutableStatus.value
+        override suspend fun refresh(): TransportStatus {
+            refreshCount++
+            val refreshed = refreshHandler?.invoke() ?: mutableStatus.value
+            mutableStatus.value = refreshed
+            return refreshed
+        }
 
         override suspend fun execute(command: CommandDefinition): CommandResult {
             executeCount++
