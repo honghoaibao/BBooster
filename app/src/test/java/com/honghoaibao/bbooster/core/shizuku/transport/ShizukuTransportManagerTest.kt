@@ -325,6 +325,49 @@ class ShizukuTransportManagerTest {
     }
 
     @Test
+    fun transportExceptionHasUnknownDispatchAndDoesNotFallback() = runBlocking {
+        val user = FakeTransport(CommandTransportType.USER_SERVICE) {
+            throw IllegalStateException("Binder request outcome is unknown")
+        }
+        val direct = FakeTransport(CommandTransportType.DIRECT_PROCESS) { command ->
+            success(command, CommandTransportType.DIRECT_PROCESS)
+        }
+        val manager = manager(user, direct)
+
+        val result = manager.execute("caller_identity")
+
+        assertEquals(CommandExecutionStatus.UNKNOWN, result.status)
+        assertEquals(CommandDispatchState.UNKNOWN, result.dispatchState)
+        assertEquals(CommandFailureCode.INTERNAL_ERROR, result.failureCode)
+        assertEquals(0, direct.executeCount)
+        manager.close()
+    }
+
+    @Test
+    fun mismatchedTransportResultIsConvertedToUnknownWithoutFallback() = runBlocking {
+        val user = FakeTransport(CommandTransportType.USER_SERVICE) { command ->
+            CommandResult(
+                commandId = command.id,
+                transport = CommandTransportType.DIRECT_PROCESS,
+                status = CommandExecutionStatus.COMPLETED,
+                dispatchState = CommandDispatchState.DISPATCHED,
+                exitCode = 0
+            )
+        }
+        val direct = FakeTransport(CommandTransportType.DIRECT_PROCESS) { command ->
+            success(command, CommandTransportType.DIRECT_PROCESS)
+        }
+        val manager = manager(user, direct)
+
+        val result = manager.execute("caller_identity")
+
+        assertEquals(CommandExecutionStatus.UNKNOWN, result.status)
+        assertEquals(CommandDispatchState.UNKNOWN, result.dispatchState)
+        assertEquals(0, direct.executeCount)
+        manager.close()
+    }
+
+    @Test
     fun unknownCommandIsRejectedWithoutCallingTransports() = runBlocking {
         val user = FakeTransport(CommandTransportType.USER_SERVICE) { command ->
             success(command, CommandTransportType.USER_SERVICE)
