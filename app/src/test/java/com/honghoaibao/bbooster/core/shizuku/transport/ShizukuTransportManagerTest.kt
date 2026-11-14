@@ -151,7 +151,8 @@ class ShizukuTransportManagerTest {
                 success(command, CommandTransportType.USER_SERVICE)
             }
         )
-        // Replace the first scripted response with a deterministic queue.
+        user.setAvailability(TransportAvailability.DEGRADED)
+        // Script a first pre-dispatch failure followed by recovery success.
         user.results.add(
             notDispatched(
                 requireNotNull(CommandRegistry.find("caller_identity")),
@@ -265,6 +266,10 @@ class ShizukuTransportManagerTest {
         var executeCount: Int = 0
             private set
         val results = mutableListOf<CommandResult>()
+
+        fun setAvailability(availability: TransportAvailability) {
+            mutableStatus.value = mutableStatus.value.copy(state = availability)
+        }
 
         override suspend fun refresh(): TransportStatus = mutableStatus.value
 
