@@ -65,8 +65,9 @@ class UserServiceTransport(context: Context) : ShizukuTransport {
 
     private val serviceConnection = object : ServiceConnection {
         override fun onServiceConnected(name: ComponentName?, binder: IBinder?) {
-            val service = binder?.let(IUserService.Stub::asInterface)
+            val service = binder?.let { IUserService.Stub.asInterface(it) }
             remoteService = service
+            if (service == null) bindingRequested = false
             bindingOutcome.value = if (service != null) {
                 BindingOutcome.Connected(service)
             } else {
@@ -261,7 +262,8 @@ class UserServiceTransport(context: Context) : ShizukuTransport {
 
     override suspend fun close() {
         if (!closed.compareAndSet(false, true)) return
-        resetBinding()
+        bindingOutcome.value = BindingOutcome.Failed("UserService transport is closed.")
+        resetBinding(clearOutcome = false)
         mutableStatus.value = unavailableStatus(
             TransportAvailability.UNAVAILABLE,
             "UserService transport is closed."
@@ -336,11 +338,11 @@ class UserServiceTransport(context: Context) : ShizukuTransport {
         }
     }
 
-    private fun resetBinding() {
+    private fun resetBinding(clearOutcome: Boolean = true) {
         val shouldUnbind = bindingRequested
         bindingRequested = false
         remoteService = null
-        bindingOutcome.value = null
+        if (clearOutcome) bindingOutcome.value = null
         if (shouldUnbind && safeBinderAvailable()) {
             runCatching {
                 Shizuku.unbindUserService(userServiceArgs, serviceConnection, true)
