@@ -66,11 +66,9 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onDestroy() {
-        if (isFinishing) {
-            val manager = transportManager
-            lifecycleScope.launch(NonCancellable + Dispatchers.IO) {
-                manager.close()
-            }
+        val manager = transportManager
+        lifecycleScope.launch(NonCancellable + Dispatchers.IO) {
+            manager.close()
         }
         super.onDestroy()
     }
