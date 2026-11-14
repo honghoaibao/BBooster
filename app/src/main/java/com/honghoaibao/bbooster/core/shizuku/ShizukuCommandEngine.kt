@@ -23,7 +23,8 @@ import rikka.shizuku.Shizuku
 import kotlin.coroutines.resume
 
 /**
- * Binds the app to the isolated Shizuku UserService and verifies its AIDL connection.
+ * Legacy dashboard bridge retained until UnifiedCommandEngine integration.
+ * New command execution should use UserServiceTransport.
  */
 class ShizukuCommandEngine(context: Context) {
 
@@ -95,7 +96,7 @@ class ShizukuCommandEngine(context: Context) {
 
         try {
             val remote = awaitService()
-            val combined = executeAction(remote, USER_SERVICE_TEST_ACTION)
+            val combined = executeAction(remote, DIAGNOSTIC_ACTION_ID)
 
             mutableState.value = mutableState.value.copy(
                 serviceStatus = CommandServiceStatus.READY,
@@ -174,9 +175,7 @@ class ShizukuCommandEngine(context: Context) {
     private suspend fun awaitService(): IUserService {
         remoteService?.let { return it }
 
-        if (!Shizuku.pingBinder()) {
-            throw ShizukuBinderUnavailableException()
-        }
+        if (!Shizuku.pingBinder()) throw ShizukuBinderUnavailableException()
         if (Shizuku.checkSelfPermission() != PackageManager.PERMISSION_GRANTED) {
             throw SecurityException("Shizuku permission is not granted.")
         }
@@ -199,7 +198,7 @@ class ShizukuCommandEngine(context: Context) {
             }
         }
 
-        return when (val outcome = withTimeout(BIND_TIMEOUT_MS) {
+        return when (val outcome = kotlinx.coroutines.withTimeout(BIND_TIMEOUT_MS) {
             bindingOutcomeFlow.filterNotNull().first()
         }) {
             is BindingOutcome.Connected -> outcome.service
@@ -212,7 +211,7 @@ class ShizukuCommandEngine(context: Context) {
     private suspend fun executeAction(
         service: IUserService,
         actionId: String
-    ): CommandBatchResult = kotlinx.coroutines.withTimeoutOrNull(COMMAND_TIMEOUT_MS) {
+    ): CommandBatchResult = kotlinx.coroutines.withTimeoutOrNull(COMMAND_TIMEOUT_MS + CALLBACK_GRACE_MS) {
         suspendCancellableCoroutine { continuation ->
             try {
                 service.execute(
@@ -223,7 +222,8 @@ class ShizukuCommandEngine(context: Context) {
                             exitCode: Int,
                             stdout: String?,
                             stderr: String?,
-                            timedOut: Boolean
+                            timedOut: Boolean,
+                            outputTruncated: Boolean
                         ) {
                             if (continuation.isActive) {
                                 continuation.resume(
@@ -231,7 +231,8 @@ class ShizukuCommandEngine(context: Context) {
                                         exitCode = exitCode,
                                         stdout = stdout.orEmpty(),
                                         stderr = stderr.orEmpty(),
-                                        timedOut = timedOut
+                                        timedOut = timedOut,
+                                        outputTruncated = outputTruncated
                                     )
                                 )
                             }
@@ -267,22 +268,23 @@ class ShizukuCommandEngine(context: Context) {
     } ?: CommandBatchResult(
         exitCode = REMOTE_ERROR_EXIT_CODE,
         stdout = "",
-        stderr = "UserService connected, but no AIDL callback arrived within ${COMMAND_TIMEOUT_MS} ms.",
+        stderr = "UserService did not return an AIDL callback within the transport deadline.",
         timedOut = true
     )
 
     private class ShizukuBinderUnavailableException : IllegalStateException()
-
     private class UserServiceBindException(cause: Throwable) : Exception(cause)
 
     private companion object {
         const val LOG_TAG = "BBoosterShizuku"
         const val USER_SERVICE_TAG = "bbooster-readonly-command-service"
-        const val USER_SERVICE_VERSION = 3
+        const val USER_SERVICE_VERSION = 4
         const val USER_SERVICE_TEST_ACTION = "userservice_connection_test"
+        const val DIAGNOSTIC_ACTION_ID = "caller_identity"
         const val USER_SERVICE_PROCESS_SUFFIX = "bbooster"
         const val BIND_TIMEOUT_MS = 35_000L
         const val COMMAND_TIMEOUT_MS = 8_000L
+        const val CALLBACK_GRACE_MS = 2_000L
         const val REMOTE_ERROR_EXIT_CODE = -1
         const val REJECTED_EXIT_CODE = -3
     }
