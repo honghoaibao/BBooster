@@ -81,10 +81,13 @@ class ShizukuTransportManager internal constructor(
         }
 
         statusScope.launch {
+            var previousAvailability = userServiceTransport.status.value.state
             userServiceTransport.status.collect { status ->
                 val recoveredDuringCooldown =
-                    status.state == TransportAvailability.READY &&
+                    previousAvailability != TransportAvailability.READY &&
+                        status.state == TransportAvailability.READY &&
                         retryUserServiceAtMs > clockMs()
+                previousAvailability = status.state
                 if (recoveredDuringCooldown) {
                     retryUserServiceAtMs = 0L
                 }
