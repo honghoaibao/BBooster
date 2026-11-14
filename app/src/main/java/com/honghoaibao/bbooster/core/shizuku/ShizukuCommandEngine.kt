@@ -22,7 +22,7 @@ import rikka.shizuku.Shizuku
 import kotlin.coroutines.resume
 
 /**
- * Binds the app to the isolated Shizuku UserService and runs fixed diagnostics.
+ * Binds the app to the isolated Shizuku UserService and verifies its AIDL connection.
  */
 class ShizukuCommandEngine(context: Context) {
 
@@ -214,7 +214,7 @@ class ShizukuCommandEngine(context: Context) {
                 service.execute(
                     actionId,
                     COMMAND_TIMEOUT_MS,
-                object : ICommandCallback.Stub() {
+                    object : ICommandCallback.Stub() {
                     override fun onCompleted(
                         exitCode: Int,
                         stdout: String?,
@@ -245,9 +245,9 @@ class ShizukuCommandEngine(context: Context) {
                             )
                         }
                     }
-                }
-            )
-        } catch (error: Exception) {
+                    }
+                )
+            } catch (error: Exception) {
             if (continuation.isActive) {
                 continuation.resume(
                     CommandBatchResult(
@@ -257,6 +257,7 @@ class ShizukuCommandEngine(context: Context) {
                         timedOut = false
                     )
                 )
+                }
             }
         }
     } ?: CommandBatchResult(
