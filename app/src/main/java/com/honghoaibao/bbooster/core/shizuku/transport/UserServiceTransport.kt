@@ -378,6 +378,11 @@ class UserServiceTransport(
             TransportAvailability.DEGRADED,
             detail
         )
+        if (safeBinderAvailable()) {
+            runCatching {
+                Shizuku.unbindUserService(userServiceArgs, connection, true)
+            }
+        }
         Log.w(TAG, detail)
     }
 
