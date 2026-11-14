@@ -309,7 +309,11 @@ class ShizukuTransportManager internal constructor(
         visibleUserServiceStatus(userServiceTransport.status.value)
 
     private fun visibleUserServiceStatus(current: TransportStatus): TransportStatus {
-        return if (retryUserServiceAtMs > clockMs() && current.state != TransportAvailability.READY) {
+        return if (
+            retryUserServiceAtMs > clockMs() &&
+            current.state != TransportAvailability.READY &&
+            current.state != TransportAvailability.UNSUPPORTED
+        ) {
             current.copy(
                 state = TransportAvailability.DEGRADED,
                 detail = mutableState.value.userService.detail
