@@ -17,7 +17,9 @@ import com.honghoaibao.bbooster.core.command.CommandTransportType
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.async
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.coroutineScope
@@ -68,6 +70,8 @@ class ShizukuTransportManager internal constructor(
 
     @Volatile private var retryUserServiceAtMs = 0L
     @Volatile private var isClosed = false
+    @Volatile private var isForeground = false
+    private var userServiceRecoveryJob: Job? = null
 
     init {
         require(userServiceTransport.type == CommandTransportType.USER_SERVICE) {
@@ -90,6 +94,8 @@ class ShizukuTransportManager internal constructor(
                 previousAvailability = status.state
                 if (recoveredDuringCooldown) {
                     retryUserServiceAtMs = 0L
+                    userServiceRecoveryJob?.cancel()
+                    userServiceRecoveryJob = null
                 }
                 mutableState.update { current ->
                     current.copy(
@@ -118,8 +124,23 @@ class ShizukuTransportManager internal constructor(
     }
 
     /**
-     * Explicit refresh bypasses the automatic cooldown and re-checks both
-     * transports concurrently. The UserService check may initiate its bind.
+     * Controls foreground-only recovery probes. No periodic Shizuku work is
+     * scheduled while the app is backgrounded.
+     */
+    fun setForeground(foreground: Boolean) {
+        if (isClosed || isForeground == foreground) return
+        isForeground = foreground
+        if (!foreground) {
+            userServiceRecoveryJob?.cancel()
+            userServiceRecoveryJob = null
+        } else {
+            scheduleUserServiceRecovery()
+        }
+    }
+
+    /**
+     * Explicit refresh can bypass the automatic cooldown. Lifecycle refreshes
+     * leave it intact and check UserService only after the deadline.
      */
     suspend fun refresh(
         forceUserServiceProbe: Boolean = false
@@ -170,6 +191,9 @@ class ShizukuTransportManager internal constructor(
             mutableState.update { it.copy(isRefreshing = false) }
         }
 
+        if (retryUserServiceAtMs > clockMs()) {
+            scheduleUserServiceRecovery()
+        }
         mutableState.value
     }
 
@@ -234,6 +258,8 @@ class ShizukuTransportManager internal constructor(
 
             if (userServiceResult.isSuccess) {
                 retryUserServiceAtMs = 0L
+                userServiceRecoveryJob?.cancel()
+                userServiceRecoveryJob = null
                 mutableState.value = mutableState.value.copy(
                     userServiceRetryAtMs = null,
                     lastFallbackReason = null
@@ -244,6 +270,18 @@ class ShizukuTransportManager internal constructor(
             if (!userServiceResult.canSafelyFallback ||
                 definition.retryPolicy != CommandRetryPolicy.ONLY_WHEN_NOT_DISPATCHED
             ) {
+                if (
+                    userServiceTransport.status.value.state == TransportAvailability.DEGRADED ||
+                    userServiceTransport.status.value.state == TransportAvailability.UNAVAILABLE
+                ) {
+                    retryUserServiceAtMs = clockMs() + userServiceRetryDelayMs
+                    mutableState.value = mutableState.value.copy(
+                        userServiceRetryAtMs = retryUserServiceAtMs,
+                        lastFallbackReason = userServiceResult.failureDetail
+                            ?: "UserService health needs to be checked again."
+                    )
+                    scheduleUserServiceRecovery()
+                }
                 return finish(userServiceResult)
             }
 
@@ -261,6 +299,7 @@ class ShizukuTransportManager internal constructor(
                 userServiceRetryAtMs = retryUserServiceAtMs,
                 lastFallbackReason = reason
             )
+            scheduleUserServiceRecovery()
         }
 
         if (CommandTransportType.DIRECT_PROCESS !in definition.supportedTransports) {
@@ -347,6 +386,69 @@ class ShizukuTransportManager internal constructor(
             )
         }
 
+    private fun scheduleUserServiceRecovery() {
+        if (
+            isClosed ||
+            !isForeground ||
+            userServiceRetryDelayMs <= 0L ||
+            retryUserServiceAtMs <= 0L
+        ) {
+            return
+        }
+
+        val scheduledDeadline = retryUserServiceAtMs
+        userServiceRecoveryJob?.cancel()
+        userServiceRecoveryJob = statusScope.launch {
+            delay((scheduledDeadline - clockMs()).coerceAtLeast(0L))
+            executionMutex.withLock {
+                if (
+                    isClosed ||
+                    !isForeground ||
+                    retryUserServiceAtMs != scheduledDeadline
+                ) {
+                    return@withLock
+                }
+
+                val status = refreshSafely(userServiceTransport)
+                when (status.state) {
+                    TransportAvailability.READY -> {
+                        retryUserServiceAtMs = 0L
+                        mutableState.value = mutableState.value.copy(
+                            userService = status,
+                            userServiceRetryAtMs = null,
+                            lastFallbackReason = null
+                        )
+                    }
+
+                    TransportAvailability.DEGRADED,
+                    TransportAvailability.UNAVAILABLE -> {
+                        retryUserServiceAtMs = clockMs() + userServiceRetryDelayMs
+                        mutableState.value = mutableState.value.copy(
+                            userService = status,
+                            userServiceRetryAtMs = retryUserServiceAtMs,
+                            lastFallbackReason = status.detail
+                                ?: "UserService is still unavailable."
+                        )
+                    }
+
+                    else -> {
+                        retryUserServiceAtMs = 0L
+                        mutableState.value = mutableState.value.copy(
+                            userService = status,
+                            userServiceRetryAtMs = null
+                        )
+                    }
+                }
+            }
+
+            if (retryUserServiceAtMs > clockMs()) {
+                scheduleUserServiceRecovery()
+            } else {
+                userServiceRecoveryJob = null
+            }
+        }
+    }
+
     private fun effectiveUserServiceStatus(): TransportStatus =
         visibleUserServiceStatus(userServiceTransport.status.value)
 
@@ -380,6 +482,9 @@ class ShizukuTransportManager internal constructor(
     suspend fun close() = executionMutex.withLock {
         if (isClosed) return@withLock
         isClosed = true
+        isForeground = false
+        userServiceRecoveryJob?.cancel()
+        userServiceRecoveryJob = null
         statusScope.cancel()
         try {
             userServiceTransport.close()
