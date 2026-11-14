@@ -10,16 +10,18 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.core.os.LocaleListCompat
 import androidx.lifecycle.lifecycleScope
-import com.honghoaibao.bbooster.core.shizuku.ShizukuCommandEngine
 import com.honghoaibao.bbooster.core.shizuku.ShizukuConnectionManager
+import com.honghoaibao.bbooster.core.shizuku.transport.ShizukuTransportManager
 import com.honghoaibao.bbooster.feature.dashboard.DashboardScreen
 import com.honghoaibao.bbooster.ui.theme.BBoosterTheme
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.launch
 
 class MainActivity : AppCompatActivity() {
 
     private val shizukuConnectionManager by lazy { ShizukuConnectionManager() }
-    private val shizukuCommandEngine by lazy { ShizukuCommandEngine(this) }
+    private val transportManager by lazy { ShizukuTransportManager(this) }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -29,16 +31,16 @@ class MainActivity : AppCompatActivity() {
 
         setContent {
             val shizukuState by shizukuConnectionManager.state.collectAsState()
-            val commandState by shizukuCommandEngine.state.collectAsState()
+            val transportState by transportManager.state.collectAsState()
 
             BBoosterTheme {
                 DashboardScreen(
                     shizukuState = shizukuState,
-                    commandState = commandState,
+                    commandState = transportState,
                     selectedLanguage = currentLanguageTag(),
                     onRequestShizukuPermission = shizukuConnectionManager::requestPermission,
                     onOpenShizuku = ::openShizuku,
-                    onRefreshShizuku = shizukuConnectionManager::refresh,
+                    onRefreshShizuku = ::refreshConnections,
                     onRunDiagnostics = ::runDiagnostics,
                     onLanguageSelected = ::setLanguage
                 )
@@ -53,18 +55,36 @@ class MainActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
-        shizukuConnectionManager.refresh()
+        refreshConnections()
     }
 
     override fun onStop() {
-        shizukuCommandEngine.unbind()
+        // Keep the UserService binding alive while the Activity is temporarily
+        // backgrounded. The manager releases it when the Activity is finishing.
         shizukuConnectionManager.unregisterListeners()
         super.onStop()
     }
 
+    override fun onDestroy() {
+        if (isFinishing) {
+            val manager = transportManager
+            lifecycleScope.launch(NonCancellable + Dispatchers.IO) {
+                manager.close()
+            }
+        }
+        super.onDestroy()
+    }
+
+    private fun refreshConnections() {
+        shizukuConnectionManager.refresh()
+        lifecycleScope.launch {
+            transportManager.refresh()
+        }
+    }
+
     private fun runDiagnostics() {
         lifecycleScope.launch {
-            shizukuCommandEngine.runDiagnostics()
+            transportManager.execute(DIAGNOSTIC_COMMAND_ID)
         }
     }
 
@@ -95,5 +115,6 @@ class MainActivity : AppCompatActivity() {
     private companion object {
         const val SHIZUKU_PACKAGE = "moe.shizuku.privileged.api"
         const val SHIZUKU_DOWNLOAD_URL = "https://shizuku.rikka.app/download/"
+        const val DIAGNOSTIC_COMMAND_ID = "caller_identity"
     }
 }
