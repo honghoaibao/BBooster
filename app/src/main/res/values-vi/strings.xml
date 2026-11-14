@@ -74,6 +74,7 @@
     <string name="command_unknown_result">Không xác định được kết quả thực thi</string>
     <string name="command_output_truncated">Đầu ra đã được rút gọn theo giới hạn an toàn.</string>
     <string name="version_footer">SHIZUKU TRANSPORT ENGINE · v0.3.5</string>
+    <string name="transport_refreshing">Đang kiểm tra khả năng hoạt động của transport…</string>
     <string name="language_title">Ngôn ngữ</string>
     <string name="language_english">Tiếng Anh</string>
     <string name="language_vietnamese">Tiếng Việt</string>
