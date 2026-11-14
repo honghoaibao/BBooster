@@ -87,11 +87,22 @@ class ShizukuTransportManager internal constructor(
             user.await() to direct.await()
         }
 
+        retryUserServiceAtMs = if (
+            userStatus.state == TransportAvailability.UNSUPPORTED ||
+            userStatus.state == TransportAvailability.DEGRADED
+        ) {
+            clockMs() + userServiceRetryDelayMs
+        } else {
+            0L
+        }
         mutableState.value = mutableState.value.copy(
             userService = userStatus,
             directProcess = directStatus,
-            userServiceRetryAtMs = null,
-            lastFallbackReason = null
+            userServiceRetryAtMs = retryUserServiceAtMs.takeIf { it > 0L },
+            lastFallbackReason = userStatus.detail.takeIf {
+                userStatus.state == TransportAvailability.UNSUPPORTED ||
+                    userStatus.state == TransportAvailability.DEGRADED
+            }
         )
         mutableState.value
     }
@@ -273,7 +284,9 @@ class ShizukuTransportManager internal constructor(
         return if (retryUserServiceAtMs > clockMs() && current.state != TransportAvailability.READY) {
             current.copy(
                 state = TransportAvailability.DEGRADED,
-                detail = current.detail ?: "UserService is in a temporary retry cooldown."
+                detail = mutableState.value.userService.detail
+                    ?: current.detail
+                    ?: "UserService is in a temporary retry cooldown."
             )
         } else {
             current
