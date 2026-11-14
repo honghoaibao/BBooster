@@ -13,7 +13,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -180,6 +179,7 @@ class ShizukuTransportManagerTest {
         now = 2_000L
         val second = manager.execute("caller_identity")
         now = 6_000L
+        user.setAvailability(TransportAvailability.READY)
         val third = manager.execute("caller_identity")
 
         assertEquals(CommandTransportType.DIRECT_PROCESS, first.transport)
