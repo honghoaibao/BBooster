@@ -82,8 +82,23 @@ class ShizukuTransportManager internal constructor(
 
         statusScope.launch {
             userServiceTransport.status.collect { status ->
+                if (status.state == TransportAvailability.READY) {
+                    retryUserServiceAtMs = 0L
+                }
                 mutableState.update { current ->
-                    current.copy(userService = visibleUserServiceStatus(status))
+                    current.copy(
+                        userService = visibleUserServiceStatus(status),
+                        userServiceRetryAtMs = if (status.state == TransportAvailability.READY) {
+                            null
+                        } else {
+                            current.userServiceRetryAtMs
+                        },
+                        lastFallbackReason = if (status.state == TransportAvailability.READY) {
+                            null
+                        } else {
+                            current.lastFallbackReason
+                        }
+                    )
                 }
             }
         }
