@@ -74,6 +74,7 @@
     <string name="command_unknown_result">Execution result is unknown</string>
     <string name="command_output_truncated">Output was shortened to stay within the safety limit.</string>
     <string name="version_footer">SHIZUKU TRANSPORT ENGINE · v0.3.5</string>
+    <string name="transport_refreshing">Checking Shizuku transport availability…</string>
     <string name="language_title">Language</string>
     <string name="language_english">English</string>
     <string name="language_vietnamese">Vietnamese</string>
