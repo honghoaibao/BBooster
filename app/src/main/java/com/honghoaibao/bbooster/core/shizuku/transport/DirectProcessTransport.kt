@@ -106,6 +106,16 @@ class DirectProcessTransport internal constructor(
                 )
             }
 
+            if (command.requiresConfirmation) {
+                return@withContext result(
+                    command = command,
+                    status = CommandExecutionStatus.REJECTED,
+                    dispatchState = CommandDispatchState.NOT_DISPATCHED,
+                    failureCode = CommandFailureCode.USER_CONFIRMATION_REQUIRED,
+                    detail = "This transport does not accept commands requiring explicit confirmation."
+                )
+            }
+
             if (CommandTransportType.DIRECT_PROCESS !in command.supportedTransports ||
                 command.executionMode != CommandExecutionMode.ONE_SHOT
             ) {
