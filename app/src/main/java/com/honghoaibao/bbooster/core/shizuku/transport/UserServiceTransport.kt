@@ -85,35 +85,27 @@ class UserServiceTransport(
                 }
 
                 val service = binder?.let { IUserService.Stub.asInterface(it) }
+                if (service == null) {
+                    handleConnectionFailure(this, "Shizuku delivered a null UserService binder.")
+                    return
+                }
+
                 remoteService = service
-                if (service == null) bindingRequested = false
-                bindingOutcome.value = if (service != null) {
-                    BindingOutcome.Connected(service)
-                } else {
-                    BindingOutcome.Failed("Shizuku delivered a null UserService binder.")
-                }
-                mutableStatus.value = if (service != null) {
-                    readyStatus()
-                } else {
-                    unavailableStatus(
-                        TransportAvailability.DEGRADED,
-                        "Shizuku delivered a null UserService binder."
-                    )
-                }
-                Log.i(TAG, "UserService connected; binderPresent=${service != null}")
+                bindingOutcome.value = BindingOutcome.Connected(service)
+                mutableStatus.value = readyStatus()
+                Log.i(TAG, "UserService connected; binderPresent=true")
             }
 
             override fun onServiceDisconnected(name: ComponentName?) {
-                if (activeConnection !== this || closed.get()) return
-                remoteService = null
-                bindingRequested = false
-                activeConnection = null
-                bindingOutcome.value = BindingOutcome.Failed("UserService disconnected.")
-                mutableStatus.value = unavailableStatus(
-                    TransportAvailability.DEGRADED,
-                    "UserService disconnected."
-                )
-                Log.w(TAG, "UserService disconnected.")
+                handleConnectionFailure(this, "UserService disconnected.")
+            }
+
+            override fun onBindingDied(name: ComponentName?) {
+                handleConnectionFailure(this, "UserService binding died.")
+            }
+
+            override fun onNullBinding(name: ComponentName?) {
+                handleConnectionFailure(this, "UserService returned a null binding.")
             }
         }
 
@@ -372,14 +364,31 @@ class UserServiceTransport(
         }
     }
 
+    private fun handleConnectionFailure(
+        connection: ServiceConnection,
+        detail: String
+    ) {
+        if (activeConnection !== connection || closed.get()) return
+
+        activeConnection = null
+        bindingRequested = false
+        remoteService = null
+        bindingOutcome.value = BindingOutcome.Failed(detail)
+        mutableStatus.value = unavailableStatus(
+            TransportAvailability.DEGRADED,
+            detail
+        )
+        Log.w(TAG, detail)
+    }
+
     private fun resetBinding(clearOutcome: Boolean = true) {
         val connection = activeConnection
-        val shouldUnbind = bindingRequested && connection != null
+        val shouldUnbind = bindingRequested
         bindingRequested = false
         activeConnection = null
         remoteService = null
         if (clearOutcome) bindingOutcome.value = null
-        if (shouldUnbind && safeBinderAvailable()) {
+        if (connection != null && shouldUnbind && safeBinderAvailable()) {
             runCatching {
                 Shizuku.unbindUserService(userServiceArgs, connection, true)
             }
