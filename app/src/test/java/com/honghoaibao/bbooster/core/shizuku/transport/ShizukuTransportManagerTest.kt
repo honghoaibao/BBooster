@@ -11,7 +11,9 @@ import com.honghoaibao.bbooster.core.command.CommandTransportType
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withTimeout
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -188,6 +190,49 @@ class ShizukuTransportManagerTest {
         assertEquals(2, user.executeCount)
         assertEquals(2, direct.executeCount)
         assertNull(manager.state.value.userServiceRetryAtMs)
+        manager.close()
+    }
+
+    @Test
+    fun knownUnsupportedUserServiceUsesDirectProcessDuringCooldown() = runBlocking {
+        val user = FakeTransport(CommandTransportType.USER_SERVICE) { command ->
+            success(command, CommandTransportType.USER_SERVICE)
+        }
+        user.setAvailability(TransportAvailability.UNSUPPORTED)
+        val direct = FakeTransport(CommandTransportType.DIRECT_PROCESS) { command ->
+            success(command, CommandTransportType.DIRECT_PROCESS)
+        }
+        val manager = manager(user, direct)
+
+        val refreshed = manager.refresh()
+        val result = manager.execute("caller_identity")
+
+        assertEquals(TransportAvailability.UNSUPPORTED, refreshed.userService.state)
+        assertTrue(manager.state.value.userServiceRetryAtMs != null)
+        assertEquals(CommandTransportType.DIRECT_PROCESS, result.transport)
+        assertEquals(0, user.executeCount)
+        assertEquals(1, direct.executeCount)
+        manager.close()
+    }
+
+    @Test
+    fun transportStatusChangesArePublishedByManager() = runBlocking {
+        val user = FakeTransport(CommandTransportType.USER_SERVICE) { command ->
+            success(command, CommandTransportType.USER_SERVICE)
+        }
+        val direct = FakeTransport(CommandTransportType.DIRECT_PROCESS) { command ->
+            success(command, CommandTransportType.DIRECT_PROCESS)
+        }
+        val manager = manager(user, direct)
+
+        user.setAvailability(TransportAvailability.DEGRADED)
+        val observed = withTimeout(2_000L) {
+            manager.state.first {
+                it.userService.state == TransportAvailability.DEGRADED
+            }
+        }
+
+        assertEquals(TransportAvailability.DEGRADED, observed.userService.state)
         manager.close()
     }
 
