@@ -92,5 +92,4 @@
     <string name="session_recovery">Session recovery</string>
     <string name="session_recovery_description">Track temporary changes and restore the original device settings.</string>
     <string name="soon">SOON</string>
-    <string name="version_footer">SHIZUKU TRANSPORT ENGINE · v0.3.5</string>
 </resources>
