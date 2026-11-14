@@ -70,45 +70,52 @@ class UserServiceTransport(
     @Volatile private var bindingRequested = false
     private val closed = AtomicBoolean(false)
 
-    private val serviceConnection = object : ServiceConnection {
-        override fun onServiceConnected(name: ComponentName?, binder: IBinder?) {
-            if (closed.get() || !bindingRequested) {
-                if (safeBinderAvailable()) {
-                    runCatching { Shizuku.unbindUserService(userServiceArgs, serviceConnection, true) }
-                }
-                return
-            }
-            val service = binder?.let { IUserService.Stub.asInterface(it) }
-            remoteService = service
-            if (service == null) bindingRequested = false
-            bindingOutcome.value = if (service != null) {
-                BindingOutcome.Connected(service)
-            } else {
-                BindingOutcome.Failed("Shizuku delivered a null UserService binder.")
-            }
-            mutableStatus.value = if (service != null) {
-                readyStatus()
-            } else {
-                unavailableStatus(
-                    TransportAvailability.DEGRADED,
-                    "Shizuku delivered a null UserService binder."
-                )
-            }
-            Log.i(TAG, "UserService connected; binderPresent=${service != null}")
-        }
+    @Volatile private var activeConnection: ServiceConnection? = null
 
-        override fun onServiceDisconnected(name: ComponentName?) {
-            if (closed.get()) return
-            remoteService = null
-            bindingRequested = false
-            bindingOutcome.value = BindingOutcome.Failed("UserService disconnected.")
-            mutableStatus.value = unavailableStatus(
-                TransportAvailability.DEGRADED,
-                "UserService disconnected."
-            )
-            Log.w(TAG, "UserService disconnected.")
+    private fun createServiceConnection(): ServiceConnection =
+        object : ServiceConnection {
+            override fun onServiceConnected(name: ComponentName?, binder: IBinder?) {
+                if (closed.get() || activeConnection !== this) {
+                    if (safeBinderAvailable()) {
+                        runCatching {
+                            Shizuku.unbindUserService(userServiceArgs, this, true)
+                        }
+                    }
+                    return
+                }
+
+                val service = binder?.let { IUserService.Stub.asInterface(it) }
+                remoteService = service
+                if (service == null) bindingRequested = false
+                bindingOutcome.value = if (service != null) {
+                    BindingOutcome.Connected(service)
+                } else {
+                    BindingOutcome.Failed("Shizuku delivered a null UserService binder.")
+                }
+                mutableStatus.value = if (service != null) {
+                    readyStatus()
+                } else {
+                    unavailableStatus(
+                        TransportAvailability.DEGRADED,
+                        "Shizuku delivered a null UserService binder."
+                    )
+                }
+                Log.i(TAG, "UserService connected; binderPresent=${service != null}")
+            }
+
+            override fun onServiceDisconnected(name: ComponentName?) {
+                if (activeConnection !== this || closed.get()) return
+                remoteService = null
+                bindingRequested = false
+                activeConnection = null
+                bindingOutcome.value = BindingOutcome.Failed("UserService disconnected.")
+                mutableStatus.value = unavailableStatus(
+                    TransportAvailability.DEGRADED,
+                    "UserService disconnected."
+                )
+                Log.w(TAG, "UserService disconnected.")
+            }
         }
-    }
 
     override suspend fun refresh(): TransportStatus {
         return try {
@@ -322,14 +329,17 @@ class UserServiceTransport(
         bindingOutcome.value = null
         if (!bindingRequested) {
             bindingRequested = true
+            val connection = createServiceConnection()
+            activeConnection = connection
             mutableStatus.value = unavailableStatus(
                 TransportAvailability.STARTING,
                 "Starting Shizuku UserService."
             )
             try {
-                Shizuku.bindUserService(userServiceArgs, serviceConnection)
+                Shizuku.bindUserService(userServiceArgs, connection)
             } catch (error: Exception) {
                 bindingRequested = false
+                activeConnection = null
                 throw ConnectionFailure(
                     CommandFailureCode.BIND_FAILED,
                     TransportAvailability.DEGRADED,
@@ -363,13 +373,15 @@ class UserServiceTransport(
     }
 
     private fun resetBinding(clearOutcome: Boolean = true) {
-        val shouldUnbind = bindingRequested
+        val connection = activeConnection
+        val shouldUnbind = bindingRequested && connection != null
         bindingRequested = false
+        activeConnection = null
         remoteService = null
         if (clearOutcome) bindingOutcome.value = null
         if (shouldUnbind && safeBinderAvailable()) {
             runCatching {
-                Shizuku.unbindUserService(userServiceArgs, serviceConnection, true)
+                Shizuku.unbindUserService(userServiceArgs, connection, true)
             }
         }
     }
