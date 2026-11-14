@@ -148,11 +148,7 @@ class ShizukuTransportManagerTest {
         val user = FakeTransport(
             type = CommandTransportType.USER_SERVICE,
             handler = { command ->
-                if (userCallsPlaceholder()) {
-                    success(command, CommandTransportType.USER_SERVICE)
-                } else {
-                    notDispatched(command, CommandTransportType.USER_SERVICE)
-                }
+                success(command, CommandTransportType.USER_SERVICE)
             }
         )
         // Replace the first scripted response with a deterministic queue.
@@ -250,7 +246,6 @@ class ShizukuTransportManagerTest {
         failureDetail = "Simulated pre-dispatch bind failure."
     )
 
-    private fun userCallsPlaceholder(): Boolean = false
 
     private class FakeTransport(
         override val type: CommandTransportType,
