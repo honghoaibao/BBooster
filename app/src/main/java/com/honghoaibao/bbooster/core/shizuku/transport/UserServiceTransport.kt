@@ -72,7 +72,7 @@ class UserServiceTransport(
 
     private val serviceConnection = object : ServiceConnection {
         override fun onServiceConnected(name: ComponentName?, binder: IBinder?) {
-            if (closed.get()) {
+            if (closed.get() || !bindingRequested) {
                 if (safeBinderAvailable()) {
                     runCatching { Shizuku.unbindUserService(userServiceArgs, serviceConnection, true) }
                 }
