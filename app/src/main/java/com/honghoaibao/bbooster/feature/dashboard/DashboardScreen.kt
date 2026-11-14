@@ -32,10 +32,11 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.honghoaibao.bbooster.R
-import com.honghoaibao.bbooster.core.shizuku.CommandBatchResult
-import com.honghoaibao.bbooster.core.shizuku.CommandEngineError
-import com.honghoaibao.bbooster.core.shizuku.CommandEngineState
-import com.honghoaibao.bbooster.core.shizuku.CommandServiceStatus
+import com.honghoaibao.bbooster.core.command.CommandExecutionStatus
+import com.honghoaibao.bbooster.core.command.CommandResult
+import com.honghoaibao.bbooster.core.command.CommandTransportType
+import com.honghoaibao.bbooster.core.shizuku.transport.TransportAvailability
+import com.honghoaibao.bbooster.core.shizuku.transport.TransportManagerState
 import com.honghoaibao.bbooster.core.shizuku.ShizukuConnectionState
 import com.honghoaibao.bbooster.core.shizuku.ShizukuConnectionStatus
 import com.honghoaibao.bbooster.core.shizuku.ShizukuPrivilege
@@ -51,7 +52,7 @@ import com.honghoaibao.bbooster.ui.theme.SoftWhite
 @Composable
 fun DashboardScreen(
     shizukuState: ShizukuConnectionState,
-    commandState: CommandEngineState,
+    commandState: TransportManagerState,
     selectedLanguage: String,
     onRequestShizukuPermission: () -> Unit,
     onOpenShizuku: () -> Unit,
@@ -316,15 +317,19 @@ private fun ActionButton(label: String, onClick: () -> Unit) {
 @Composable
 private fun CommandEngineCard(
     shizukuReady: Boolean,
-    state: CommandEngineState,
+    state: TransportManagerState,
     onRunDiagnostics: () -> Unit
 ) {
+    val hasWorkingTransport =
+        state.userService.state == TransportAvailability.READY ||
+            state.directProcess.state == TransportAvailability.AVAILABLE ||
+            state.directProcess.state == TransportAvailability.READY
+
     Card(
         colors = CardDefaults.cardColors(containerColor = DarkSlate),
         border = BorderStroke(
             1.dp,
-            if (state.serviceStatus == CommandServiceStatus.READY) Emerald.copy(alpha = 0.55f)
-            else SlateBorder
+            if (hasWorkingTransport) Emerald.copy(alpha = 0.55f) else SlateBorder
         ),
         shape = RoundedCornerShape(22.dp),
         modifier = Modifier.fillMaxWidth()
@@ -347,7 +352,25 @@ private fun CommandEngineCard(
                 lineHeight = 19.sp
             )
 
-            if (state.isRunning) {
+            TransportStatusRow(
+                label = stringResource(R.string.transport_user_service),
+                status = state.userService.state
+            )
+            TransportStatusRow(
+                label = stringResource(R.string.transport_direct_process),
+                status = state.directProcess.state
+            )
+
+            state.lastFallbackReason?.takeIf(String::isNotBlank)?.let { reason ->
+                Text(
+                    stringResource(R.string.transport_fallback_reason, reason),
+                    color = Amber,
+                    fontSize = 11.sp,
+                    lineHeight = 16.sp
+                )
+            }
+
+            if (state.isExecuting) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(10.dp)
@@ -359,33 +382,13 @@ private fun CommandEngineCard(
                     )
                     Text(stringResource(R.string.command_running), color = Amber, fontSize = 12.sp)
                 }
-            } else if (state.serviceStatus == CommandServiceStatus.BINDING) {
-                Text(stringResource(R.string.command_binding), color = Amber, fontSize = 12.sp)
-            } else if (state.serviceStatus == CommandServiceStatus.READY) {
-                Text(stringResource(R.string.command_service_ready), color = Emerald, fontSize = 12.sp)
             }
 
-            state.error?.let { error ->
-                Text(
-                    error.localizedMessage(),
-                    color = Color(0xFFFF7A83),
-                    fontSize = 12.sp,
-                    lineHeight = 17.sp
-                )
-                state.errorDetail?.takeIf(String::isNotBlank)?.let { detail ->
-                    Text(
-                        stringResource(R.string.command_error_detail, detail),
-                        color = MutedText,
-                        fontSize = 10.sp,
-                        lineHeight = 14.sp
-                    )
-                }
-            }
             state.lastResult?.let { DiagnosticResult(it) }
 
             Button(
                 onClick = onRunDiagnostics,
-                enabled = shizukuReady && !state.isRunning,
+                enabled = shizukuReady && !state.isExecuting,
                 modifier = Modifier.fillMaxWidth(),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = ElectricCyan,
@@ -409,25 +412,83 @@ private fun CommandEngineCard(
 }
 
 @Composable
-private fun DiagnosticResult(result: CommandBatchResult) {
+private fun TransportStatusRow(
+    label: String,
+    status: TransportAvailability
+) {
+    val (statusLabel, color) = when (status) {
+        TransportAvailability.CHECKING -> stringResource(R.string.transport_checking) to MutedText
+        TransportAvailability.AVAILABLE,
+        TransportAvailability.READY -> stringResource(R.string.transport_ready) to Emerald
+        TransportAvailability.STARTING -> stringResource(R.string.transport_starting) to Amber
+        TransportAvailability.DEGRADED -> stringResource(R.string.transport_degraded) to Amber
+        TransportAvailability.UNAVAILABLE -> stringResource(R.string.transport_unavailable) to Color(0xFFFF7A83)
+        TransportAvailability.UNSUPPORTED -> stringResource(R.string.transport_unsupported) to Color(0xFFFF7A83)
+    }
+
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Text(label, color = SoftWhite, fontSize = 12.sp)
+        Text(statusLabel, color = color, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+    }
+}
+
+@Composable
+private fun DiagnosticResult(result: CommandResult) {
+    val statusLabel = when (result.status) {
+        CommandExecutionStatus.COMPLETED -> stringResource(R.string.command_completed)
+        CommandExecutionStatus.TIMED_OUT -> stringResource(R.string.command_timed_out)
+        CommandExecutionStatus.NOT_STARTED -> stringResource(R.string.command_not_started)
+        CommandExecutionStatus.REJECTED -> stringResource(R.string.command_rejected)
+        CommandExecutionStatus.FAILED -> stringResource(R.string.command_failed)
+        CommandExecutionStatus.CANCELLED -> stringResource(R.string.command_cancelled)
+        CommandExecutionStatus.INTERRUPTED -> stringResource(R.string.command_interrupted)
+        CommandExecutionStatus.UNKNOWN -> stringResource(R.string.command_unknown_result)
+    }
+    val resultColor = if (result.isSuccess) Emerald else Amber
+    val transportLabel = when (result.transport) {
+        CommandTransportType.USER_SERVICE -> stringResource(R.string.transport_user_service)
+        CommandTransportType.DIRECT_PROCESS -> stringResource(R.string.transport_direct_process)
+        null -> stringResource(R.string.transport_not_selected)
+    }
+
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        val status = when {
-            result.timedOut -> stringResource(R.string.command_timed_out)
-            result.exitCode == 0 -> stringResource(R.string.command_completed)
-            else -> stringResource(R.string.command_failed)
-        }
         Text(
-            status,
-            color = if (result.exitCode == 0 && !result.timedOut) Emerald else Amber,
+            statusLabel,
+            color = resultColor,
             fontSize = 12.sp,
             fontWeight = FontWeight.SemiBold
         )
         Text(
-            stringResource(R.string.command_exit_code, result.exitCode),
+            stringResource(R.string.command_used_transport, transportLabel),
             color = MutedText,
             fontSize = 11.sp
         )
-        val output = result.stdout.ifBlank { result.stderr }.trim()
+        result.exitCode?.let { code ->
+            Text(
+                stringResource(R.string.command_exit_code, code),
+                color = MutedText,
+                fontSize = 11.sp
+            )
+        }
+        if (result.outputTruncated) {
+            Text(
+                stringResource(R.string.command_output_truncated),
+                color = Amber,
+                fontSize = 11.sp
+            )
+        }
+
+        val output = buildString {
+            if (result.stdout.isNotBlank()) append(result.stdout.trim())
+            if (result.stderr.isNotBlank()) {
+                if (isNotEmpty()) append("\n\n")
+                append(result.stderr.trim())
+            }
+        }
         if (output.isNotBlank()) {
             Surface(
                 color = Color(0xFF0D121B),
@@ -442,6 +503,14 @@ private fun DiagnosticResult(result: CommandBatchResult) {
                     modifier = Modifier.fillMaxWidth().padding(12.dp)
                 )
             }
+        }
+        result.failureDetail?.takeIf(String::isNotBlank)?.let { detail ->
+            Text(
+                stringResource(R.string.command_error_detail, detail),
+                color = MutedText,
+                fontSize = 10.sp,
+                lineHeight = 14.sp
+            )
         }
     }
 }
@@ -594,16 +663,6 @@ private fun ShizukuConnectionState.connectionDetail(): String {
     val apiLabel = serverVersion?.let { stringResource(R.string.api_value, it) }
         ?: stringResource(R.string.api_unavailable)
     return stringResource(R.string.connection_detail, privilegeLabel, uidLabel, apiLabel)
-}
-
-@Composable
-private fun CommandEngineError.localizedMessage(): String = when (this) {
-    CommandEngineError.SHIZUKU_UNAVAILABLE -> stringResource(R.string.command_error_shizuku)
-    CommandEngineError.BIND_FAILED -> stringResource(R.string.command_error_bind)
-    CommandEngineError.PERMISSION_REQUIRED -> stringResource(R.string.command_error_permission)
-    CommandEngineError.BIND_TIMEOUT -> stringResource(R.string.command_error_timeout)
-    CommandEngineError.SERVICE_DISCONNECTED -> stringResource(R.string.command_error_disconnected)
-    CommandEngineError.REMOTE_CALL_FAILED -> stringResource(R.string.command_error_remote)
 }
 
 private fun ShizukuConnectionStatus.badgeColor(): Color = when (this) {
