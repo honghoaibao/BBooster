@@ -51,6 +51,7 @@ class MainActivity : AppCompatActivity() {
     override fun onStart() {
         super.onStart()
         shizukuConnectionManager.registerListeners()
+        transportManager.setForeground(true)
     }
 
     override fun onResume() {
@@ -59,8 +60,9 @@ class MainActivity : AppCompatActivity() {
     }
 
     override fun onStop() {
-        // Keep the UserService binding alive while the Activity is temporarily
-        // backgrounded. The manager releases it when the Activity is finishing.
+        // Keep the UserService binding alive, but pause automatic recovery probes
+        // while the app is backgrounded.
+        transportManager.setForeground(false)
         shizukuConnectionManager.unregisterListeners()
         super.onStop()
     }
