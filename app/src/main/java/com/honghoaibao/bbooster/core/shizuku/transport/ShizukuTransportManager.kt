@@ -100,23 +100,35 @@ class ShizukuTransportManager internal constructor(
      * Explicit refresh bypasses the automatic cooldown and re-checks both
      * transports concurrently. The UserService check may initiate its bind.
      */
-    suspend fun refresh(): TransportManagerState = executionMutex.withLock {
+    suspend fun refresh(
+        forceUserServiceProbe: Boolean = false
+    ): TransportManagerState = executionMutex.withLock {
         if (isClosed) return@withLock mutableState.value
 
-        retryUserServiceAtMs = 0L
+        val shouldProbeUserService =
+            forceUserServiceProbe || clockMs() >= retryUserServiceAtMs
+
         val (userStatus, directStatus) = coroutineScope {
-            val user = async { refreshSafely(userServiceTransport) }
+            val user = async {
+                if (shouldProbeUserService) {
+                    refreshSafely(userServiceTransport)
+                } else {
+                    userServiceTransport.status.value
+                }
+            }
             val direct = async { refreshSafely(directProcessTransport) }
             user.await() to direct.await()
         }
 
-        retryUserServiceAtMs = if (
-            userStatus.state == TransportAvailability.UNSUPPORTED ||
-            userStatus.state == TransportAvailability.DEGRADED
-        ) {
-            clockMs() + userServiceRetryDelayMs
-        } else {
-            0L
+        if (shouldProbeUserService) {
+            retryUserServiceAtMs = if (
+                userStatus.state == TransportAvailability.UNSUPPORTED ||
+                userStatus.state == TransportAvailability.DEGRADED
+            ) {
+                clockMs() + userServiceRetryDelayMs
+            } else {
+                0L
+            }
         }
         mutableState.value = mutableState.value.copy(
             userService = userStatus,
