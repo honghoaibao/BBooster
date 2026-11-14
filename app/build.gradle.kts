@@ -12,8 +12,8 @@ android {
         applicationId = "com.honghoaibao.bbooster"
         minSdk = 26
         targetSdk = 36
-        versionCode = 4
-        versionName = "0.3.1-user-service-test"
+        versionCode = 5
+        versionName = "0.3.5-transport-manager"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
