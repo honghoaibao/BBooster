@@ -244,6 +244,12 @@ class DirectProcessTransport internal constructor(
                 }
 
                 executeStartedProcess(command, process, startedAt)
+            } catch (cancelled: CancellationException) {
+                // Cancellation can happen after the process handle is acquired
+                // but before the child stream readers start. Always kill it.
+                terminateQuietly(process)
+                closeProcessStreams(process)
+                throw cancelled
             } finally {
                 activeProcesses.remove(process)
                 closeProcessStreams(process)
