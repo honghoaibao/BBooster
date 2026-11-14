@@ -15,11 +15,18 @@ import com.honghoaibao.bbooster.core.command.CommandResult
 import com.honghoaibao.bbooster.core.command.CommandRetryPolicy
 import com.honghoaibao.bbooster.core.command.CommandTransportType
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.update
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import rikka.shizuku.Shizuku
@@ -57,9 +64,10 @@ class ShizukuTransportManager internal constructor(
     private val executionMutex = Mutex()
     private val mutableState = MutableStateFlow(TransportManagerState())
     val state: StateFlow<TransportManagerState> = mutableState.asStateFlow()
+    private val statusScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
-    private var retryUserServiceAtMs = 0L
-    private var isClosed = false
+    @Volatile private var retryUserServiceAtMs = 0L
+    @Volatile private var isClosed = false
 
     init {
         require(userServiceTransport.type == CommandTransportType.USER_SERVICE) {
@@ -70,6 +78,21 @@ class ShizukuTransportManager internal constructor(
         }
         require(userServiceRetryDelayMs >= 0L) {
             "UserService retry delay cannot be negative."
+        }
+
+        statusScope.launch {
+            userServiceTransport.status.collect { status ->
+                mutableState.update { current ->
+                    current.copy(userService = visibleUserServiceStatus(status))
+                }
+            }
+        }
+        statusScope.launch {
+            directProcessTransport.status.collect { status ->
+                mutableState.update { current ->
+                    current.copy(directProcess = status)
+                }
+            }
         }
     }
 
@@ -98,7 +121,7 @@ class ShizukuTransportManager internal constructor(
         mutableState.value = mutableState.value.copy(
             userService = userStatus,
             directProcess = directStatus,
-            userServiceRetryAtMs = retryUserServiceAtMs.takeIf { it > 0L },
+            userServiceRetryAtMs = retryUserServiceAtMs.takeIf { it > clockMs() },
             lastFallbackReason = userStatus.detail.takeIf {
                 userStatus.state == TransportAvailability.UNSUPPORTED ||
                     userStatus.state == TransportAvailability.DEGRADED
@@ -157,9 +180,10 @@ class ShizukuTransportManager internal constructor(
         }
 
         var userServiceResult: CommandResult? = null
+        val userServiceReady = userServiceTransport.status.value.state == TransportAvailability.READY
         val canUseUserService =
             CommandTransportType.USER_SERVICE in definition.supportedTransports &&
-                clockMs() >= retryUserServiceAtMs
+                (clockMs() >= retryUserServiceAtMs || userServiceReady)
 
         if (canUseUserService) {
             userServiceResult = executeSafely(userServiceTransport, definition.id)
@@ -279,8 +303,10 @@ class ShizukuTransportManager internal constructor(
             )
         }
 
-    private fun effectiveUserServiceStatus(): TransportStatus {
-        val current = userServiceTransport.status.value
+    private fun effectiveUserServiceStatus(): TransportStatus =
+        visibleUserServiceStatus(userServiceTransport.status.value)
+
+    private fun visibleUserServiceStatus(current: TransportStatus): TransportStatus {
         return if (retryUserServiceAtMs > clockMs() && current.state != TransportAvailability.READY) {
             current.copy(
                 state = TransportAvailability.DEGRADED,
@@ -307,6 +333,7 @@ class ShizukuTransportManager internal constructor(
     suspend fun close() = executionMutex.withLock {
         if (isClosed) return@withLock
         isClosed = true
+        statusScope.cancel()
         runCatching { userServiceTransport.close() }
         runCatching { directProcessTransport.close() }
         mutableState.value = mutableState.value.copy(
