@@ -28,5 +28,6 @@ data class CommandBatchResult(
     val exitCode: Int,
     val stdout: String,
     val stderr: String,
-    val timedOut: Boolean
+    val timedOut: Boolean,
+    val outputTruncated: Boolean = false
 )
