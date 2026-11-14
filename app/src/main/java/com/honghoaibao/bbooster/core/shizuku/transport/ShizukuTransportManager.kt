@@ -82,18 +82,21 @@ class ShizukuTransportManager internal constructor(
 
         statusScope.launch {
             userServiceTransport.status.collect { status ->
-                if (status.state == TransportAvailability.READY) {
+                val recoveredDuringCooldown =
+                    status.state == TransportAvailability.READY &&
+                        retryUserServiceAtMs > clockMs()
+                if (recoveredDuringCooldown) {
                     retryUserServiceAtMs = 0L
                 }
                 mutableState.update { current ->
                     current.copy(
                         userService = visibleUserServiceStatus(status),
-                        userServiceRetryAtMs = if (status.state == TransportAvailability.READY) {
+                        userServiceRetryAtMs = if (recoveredDuringCooldown) {
                             null
                         } else {
                             current.userServiceRetryAtMs
                         },
-                        lastFallbackReason = if (status.state == TransportAvailability.READY) {
+                        lastFallbackReason = if (recoveredDuringCooldown) {
                             null
                         } else {
                             current.lastFallbackReason
@@ -146,7 +149,7 @@ class ShizukuTransportManager internal constructor(
             }
         }
         mutableState.value = mutableState.value.copy(
-            userService = userStatus,
+            userService = visibleUserServiceStatus(userStatus),
             directProcess = directStatus,
             userServiceRetryAtMs = retryUserServiceAtMs.takeIf { it > clockMs() },
             lastFallbackReason = userStatus.detail.takeIf {
@@ -209,10 +212,9 @@ class ShizukuTransportManager internal constructor(
         }
 
         var userServiceResult: CommandResult? = null
-        val userServiceReady = userServiceTransport.status.value.state == TransportAvailability.READY
         val canUseUserService =
             CommandTransportType.USER_SERVICE in definition.supportedTransports &&
-                (clockMs() >= retryUserServiceAtMs || userServiceReady)
+                clockMs() >= retryUserServiceAtMs
 
         if (canUseUserService) {
             userServiceResult = executeSafely(userServiceTransport, definition.id)
@@ -338,7 +340,6 @@ class ShizukuTransportManager internal constructor(
     private fun visibleUserServiceStatus(current: TransportStatus): TransportStatus {
         return if (
             retryUserServiceAtMs > clockMs() &&
-            current.state != TransportAvailability.READY &&
             current.state != TransportAvailability.UNSUPPORTED
         ) {
             current.copy(
