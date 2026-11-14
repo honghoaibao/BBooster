@@ -6,7 +6,6 @@ import android.content.ServiceConnection
 import android.content.pm.PackageManager
 import android.os.IBinder
 import com.honghoaibao.bbooster.BuildConfig
-import com.honghoaibao.bbooster.core.command.CommandAction
 import com.honghoaibao.bbooster.core.shizuku.remote.BBoosterUserService
 import com.honghoaibao.bbooster.core.shizuku.remote.ICommandCallback
 import com.honghoaibao.bbooster.core.shizuku.remote.IUserService
@@ -93,23 +92,7 @@ class ShizukuCommandEngine(context: Context) {
 
         try {
             val remote = awaitService()
-            val actions = listOf(
-                CommandAction.CALLER_IDENTITY,
-                CommandAction.ANDROID_RELEASE,
-                CommandAction.ANDROID_SDK
-            )
-            val results = actions.map { action -> executeAction(remote, action) }
-
-            val combined = CommandBatchResult(
-                exitCode = results.lastOrNull()?.exitCode ?: 0,
-                stdout = results.mapIndexed { index, result ->
-                    val label = actions[index].name.replace('_', ' ')
-                    "${label}\n${result.stdout.trim()}"
-                }.joinToString("\n\n"),
-                stderr = results.mapNotNull { it.stderr.trim().takeIf(String::isNotEmpty) }
-                    .joinToString("\n"),
-                timedOut = results.any { it.timedOut }
-            )
+            val combined = executeAction(remote, USER_SERVICE_TEST_ACTION)
 
             mutableState.value = mutableState.value.copy(
                 serviceStatus = CommandServiceStatus.READY,
@@ -224,12 +207,13 @@ class ShizukuCommandEngine(context: Context) {
 
     private suspend fun executeAction(
         service: IUserService,
-        action: CommandAction
-    ): CommandBatchResult = suspendCancellableCoroutine { continuation ->
-        try {
-            service.execute(
-                action.id,
-                COMMAND_TIMEOUT_MS,
+        actionId: String
+    ): CommandBatchResult = kotlinx.coroutines.withTimeoutOrNull(COMMAND_TIMEOUT_MS) {
+        suspendCancellableCoroutine { continuation ->
+            try {
+                service.execute(
+                    actionId,
+                    COMMAND_TIMEOUT_MS,
                 object : ICommandCallback.Stub() {
                     override fun onCompleted(
                         exitCode: Int,
@@ -275,7 +259,12 @@ class ShizukuCommandEngine(context: Context) {
                 )
             }
         }
-    }
+    } ?: CommandBatchResult(
+        exitCode = REMOTE_ERROR_EXIT_CODE,
+        stdout = "",
+        stderr = "UserService connected, but no AIDL callback arrived within ${COMMAND_TIMEOUT_MS} ms.",
+        timedOut = true
+    )
 
     private class ShizukuBinderUnavailableException : IllegalStateException()
 
@@ -283,7 +272,8 @@ class ShizukuCommandEngine(context: Context) {
 
     private companion object {
         const val USER_SERVICE_TAG = "bbooster-readonly-command-service"
-        const val USER_SERVICE_VERSION = 2
+        const val USER_SERVICE_VERSION = 3
+        const val USER_SERVICE_TEST_ACTION = "userservice_connection_test"
         const val USER_SERVICE_PROCESS_SUFFIX = "bbooster"
         const val BIND_TIMEOUT_MS = 35_000L
         const val COMMAND_TIMEOUT_MS = 8_000L
