@@ -8,6 +8,7 @@ import com.honghoaibao.bbooster.core.command.CommandPolicyContext
 import com.honghoaibao.bbooster.core.command.CommandRegistry
 import com.honghoaibao.bbooster.core.command.CommandResult
 import com.honghoaibao.bbooster.core.command.CommandTransportType
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -364,6 +365,29 @@ class ShizukuTransportManagerTest {
         assertEquals(CommandExecutionStatus.UNKNOWN, result.status)
         assertEquals(CommandDispatchState.UNKNOWN, result.dispatchState)
         assertEquals(0, direct.executeCount)
+        manager.close()
+    }
+
+    @Test
+    fun cancellationPropagatesAndDoesNotStartFallbackTransport() = runBlocking {
+        val user = FakeTransport(CommandTransportType.USER_SERVICE) {
+            throw CancellationException("Test cancellation")
+        }
+        val direct = FakeTransport(CommandTransportType.DIRECT_PROCESS) { command ->
+            success(command, CommandTransportType.DIRECT_PROCESS)
+        }
+        val manager = manager(user, direct)
+
+        var cancellationPropagated = false
+        try {
+            manager.execute("caller_identity")
+        } catch (_: CancellationException) {
+            cancellationPropagated = true
+        }
+
+        assertTrue(cancellationPropagated)
+        assertEquals(0, direct.executeCount)
+        assertEquals(false, manager.state.value.isExecuting)
         manager.close()
     }
 
