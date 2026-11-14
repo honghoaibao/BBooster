@@ -41,7 +41,8 @@ class BBoosterUserService : IUserService.Stub {
         val definition = actionId?.let(CommandRegistry::find)
         if (definition == null ||
             CommandTransportType.USER_SERVICE !in definition.supportedTransports ||
-            definition.executionMode != CommandExecutionMode.ONE_SHOT
+            definition.executionMode != CommandExecutionMode.ONE_SHOT ||
+            definition.requiresConfirmation
         ) {
             reject(callback, "Command is not present in the UserService allowlist.")
             return
