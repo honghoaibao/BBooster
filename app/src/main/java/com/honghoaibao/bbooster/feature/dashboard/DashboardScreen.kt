@@ -370,7 +370,7 @@ private fun CommandEngineCard(
                 )
             }
 
-            if (state.isExecuting) {
+            if (state.isExecuting || state.isRefreshing) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(10.dp)
@@ -380,7 +380,14 @@ private fun CommandEngineCard(
                         strokeWidth = 2.dp,
                         color = ElectricCyan
                     )
-                    Text(stringResource(R.string.command_running), color = Amber, fontSize = 12.sp)
+                    Text(
+                        stringResource(
+                            if (state.isRefreshing) R.string.transport_refreshing
+                            else R.string.command_running
+                        ),
+                        color = Amber,
+                        fontSize = 12.sp
+                    )
                 }
             }
 
@@ -388,7 +395,7 @@ private fun CommandEngineCard(
 
             Button(
                 onClick = onRunDiagnostics,
-                enabled = shizukuReady && !state.isExecuting,
+                enabled = shizukuReady && !state.isExecuting && !state.isRefreshing,
                 modifier = Modifier.fillMaxWidth(),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = ElectricCyan,
