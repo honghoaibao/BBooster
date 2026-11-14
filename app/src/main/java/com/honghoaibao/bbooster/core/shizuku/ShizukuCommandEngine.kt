@@ -215,48 +215,48 @@ class ShizukuCommandEngine(context: Context) {
                     actionId,
                     COMMAND_TIMEOUT_MS,
                     object : ICommandCallback.Stub() {
-                    override fun onCompleted(
-                        exitCode: Int,
-                        stdout: String?,
-                        stderr: String?,
-                        timedOut: Boolean
-                    ) {
-                        if (continuation.isActive) {
-                            continuation.resume(
-                                CommandBatchResult(
-                                    exitCode = exitCode,
-                                    stdout = stdout.orEmpty(),
-                                    stderr = stderr.orEmpty(),
-                                    timedOut = timedOut
+                        override fun onCompleted(
+                            exitCode: Int,
+                            stdout: String?,
+                            stderr: String?,
+                            timedOut: Boolean
+                        ) {
+                            if (continuation.isActive) {
+                                continuation.resume(
+                                    CommandBatchResult(
+                                        exitCode = exitCode,
+                                        stdout = stdout.orEmpty(),
+                                        stderr = stderr.orEmpty(),
+                                        timedOut = timedOut
+                                    )
                                 )
-                            )
+                            }
                         }
-                    }
 
-                    override fun onRejected(reason: String?) {
-                        if (continuation.isActive) {
-                            continuation.resume(
-                                CommandBatchResult(
-                                    exitCode = REJECTED_EXIT_CODE,
-                                    stdout = "",
-                                    stderr = reason.orEmpty(),
-                                    timedOut = false
+                        override fun onRejected(reason: String?) {
+                            if (continuation.isActive) {
+                                continuation.resume(
+                                    CommandBatchResult(
+                                        exitCode = REJECTED_EXIT_CODE,
+                                        stdout = "",
+                                        stderr = reason.orEmpty(),
+                                        timedOut = false
+                                    )
                                 )
-                            )
+                            }
                         }
-                    }
                     }
                 )
             } catch (error: Exception) {
-            if (continuation.isActive) {
-                continuation.resume(
-                    CommandBatchResult(
-                        exitCode = REMOTE_ERROR_EXIT_CODE,
-                        stdout = "",
-                        stderr = error.message.orEmpty(),
-                        timedOut = false
+                if (continuation.isActive) {
+                    continuation.resume(
+                        CommandBatchResult(
+                            exitCode = REMOTE_ERROR_EXIT_CODE,
+                            stdout = "",
+                            stderr = error.message.orEmpty(),
+                            timedOut = false
+                        )
                     )
-                )
                 }
             }
         }
