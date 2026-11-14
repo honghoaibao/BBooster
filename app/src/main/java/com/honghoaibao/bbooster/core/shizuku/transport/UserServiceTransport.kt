@@ -39,7 +39,14 @@ import rikka.shizuku.Shizuku
  * Only immutable definitions issued by CommandRegistry are accepted. The
  * transport never exposes arbitrary shell text or caller-provided arguments.
  */
-class UserServiceTransport(context: Context) : ShizukuTransport {
+class UserServiceTransport(
+    context: Context,
+    private val bindTimeoutMs: Long = DEFAULT_BIND_TIMEOUT_MS
+) : ShizukuTransport {
+
+    init {
+        require(bindTimeoutMs > 0L) { "UserService bind timeout must be positive." }
+    }
 
     private val userServiceArgs = Shizuku.UserServiceArgs(
         ComponentName(context.applicationContext, BBoosterUserService::class.java)
@@ -331,14 +338,14 @@ class UserServiceTransport(context: Context) : ShizukuTransport {
             }
         }
 
-        val outcome = withTimeoutOrNull(BIND_TIMEOUT_MS) {
+        val outcome = withTimeoutOrNull(bindTimeoutMs) {
             bindingOutcome.filterNotNull().first()
         } ?: run {
             resetBinding()
             throw ConnectionFailure(
                 CommandFailureCode.BIND_FAILED,
                 TransportAvailability.DEGRADED,
-                "No UserService connection callback arrived within ${BIND_TIMEOUT_MS} ms."
+                "No UserService connection callback arrived within ${bindTimeoutMs} ms."
             )
         }
 
@@ -451,7 +458,7 @@ class UserServiceTransport(context: Context) : ShizukuTransport {
         const val USER_SERVICE_TAG = "bbooster-command-service"
         const val USER_SERVICE_VERSION = 4
         const val USER_SERVICE_PROCESS_SUFFIX = "bbooster"
-        const val BIND_TIMEOUT_MS = 35_000L
+        const val DEFAULT_BIND_TIMEOUT_MS = 8_000L
         const val CALLBACK_GRACE_MS = 2_000L
         const val NANOS_PER_MILLISECOND = 1_000_000L
     }
