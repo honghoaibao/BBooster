@@ -149,6 +149,11 @@ class ShizukuTransportManager internal constructor(
 
         mutableState.update { it.copy(isRefreshing = true) }
         try {
+            if (forceUserServiceProbe) {
+                retryUserServiceAtMs = 0L
+                userServiceRecoveryJob?.cancel()
+                userServiceRecoveryJob = null
+            }
             val shouldProbeUserService =
                 forceUserServiceProbe || clockMs() >= retryUserServiceAtMs
 
@@ -166,14 +171,19 @@ class ShizukuTransportManager internal constructor(
 
             if (shouldProbeUserService) {
                 retryUserServiceAtMs = if (
-                    userStatus.state == TransportAvailability.UNSUPPORTED ||
-                    userStatus.state == TransportAvailability.DEGRADED
+                    userStatus.state == TransportAvailability.DEGRADED ||
+                    userStatus.state == TransportAvailability.UNAVAILABLE
                 ) {
                     clockMs() + userServiceRetryDelayMs
                 } else {
                     0L
                 }
+                if (retryUserServiceAtMs == 0L) {
+                    userServiceRecoveryJob?.cancel()
+                    userServiceRecoveryJob = null
+                }
             }
+
             mutableState.value = mutableState.value.copy(
                 userService = visibleUserServiceStatus(userStatus),
                 directProcess = directStatus,
@@ -181,7 +191,8 @@ class ShizukuTransportManager internal constructor(
                 lastFallbackReason = if (shouldProbeUserService) {
                     userStatus.detail.takeIf {
                         userStatus.state == TransportAvailability.UNSUPPORTED ||
-                            userStatus.state == TransportAvailability.DEGRADED
+                            userStatus.state == TransportAvailability.DEGRADED ||
+                            userStatus.state == TransportAvailability.UNAVAILABLE
                     }
                 } else {
                     mutableState.value.lastFallbackReason
