@@ -112,7 +112,7 @@ class ShizukuTransportManager internal constructor(
         } finally {
             mutableState.value = mutableState.value.copy(
                 isExecuting = false,
-                userService = userServiceTransport.status.value,
+                userService = effectiveUserServiceStatus(),
                 directProcess = directProcessTransport.status.value
             )
         }
@@ -152,6 +152,15 @@ class ShizukuTransportManager internal constructor(
 
         if (canUseUserService) {
             userServiceResult = executeSafely(userServiceTransport, definition.id)
+
+            if (userServiceResult.isSuccess) {
+                retryUserServiceAtMs = 0L
+                mutableState.value = mutableState.value.copy(
+                    userServiceRetryAtMs = null,
+                    lastFallbackReason = null
+                )
+                return finish(userServiceResult)
+            }
 
             if (!userServiceResult.canSafelyFallback ||
                 definition.retryPolicy != CommandRetryPolicy.ONLY_WHEN_NOT_DISPATCHED
@@ -259,12 +268,24 @@ class ShizukuTransportManager internal constructor(
             )
         }
 
+    private fun effectiveUserServiceStatus(): TransportStatus {
+        val current = userServiceTransport.status.value
+        return if (retryUserServiceAtMs > clockMs() && current.state != TransportAvailability.READY) {
+            current.copy(
+                state = TransportAvailability.DEGRADED,
+                detail = current.detail ?: "UserService is in a temporary retry cooldown."
+            )
+        } else {
+            current
+        }
+    }
+
     private fun finish(result: CommandResult): CommandResult {
         mutableState.value = mutableState.value.copy(
             isExecuting = false,
             activeTransport = result.transport,
             lastResult = result,
-            userService = userServiceTransport.status.value,
+            userService = effectiveUserServiceStatus(),
             directProcess = directProcessTransport.status.value
         )
         return result
