@@ -162,6 +162,8 @@ class ShizukuTransportManager internal constructor(
 
         val authorization = try {
             CommandPolicy.authorize(actionId, authorizationContextProvider())
+        } catch (cancelled: CancellationException) {
+            throw cancelled
         } catch (error: Exception) {
             return finish(rejectedResult(
                 actionId = actionId,
@@ -334,8 +336,16 @@ class ShizukuTransportManager internal constructor(
         if (isClosed) return@withLock
         isClosed = true
         statusScope.cancel()
-        runCatching { userServiceTransport.close() }
-        runCatching { directProcessTransport.close() }
+        try {
+            userServiceTransport.close()
+        } catch (_: Exception) {
+            // Continue releasing the fallback transport even if unbind fails.
+        }
+        try {
+            directProcessTransport.close()
+        } catch (_: Exception) {
+            // Both transports are independent; attempt to release each one.
+        }
         mutableState.value = mutableState.value.copy(
             isExecuting = false,
             userService = userServiceTransport.status.value,
