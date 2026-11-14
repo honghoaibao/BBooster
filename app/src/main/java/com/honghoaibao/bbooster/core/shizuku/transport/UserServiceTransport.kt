@@ -459,7 +459,7 @@ class UserServiceTransport(
         const val USER_SERVICE_VERSION = 4
         const val USER_SERVICE_PROCESS_SUFFIX = "bbooster"
         const val DEFAULT_BIND_TIMEOUT_MS = 8_000L
-        const val CALLBACK_GRACE_MS = 2_000L
+        const val CALLBACK_GRACE_MS = 4_000L
         const val NANOS_PER_MILLISECOND = 1_000_000L
     }
 }
