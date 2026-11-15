@@ -57,7 +57,8 @@ class ShizukuTransportManager internal constructor(
     directProcessTransport: ShizukuTransport,
     authorizationContextProvider: () -> CommandPolicyContext,
     private val clockMs: () -> Long = { System.nanoTime() / NANOS_PER_MILLISECOND },
-    private val userServiceRetryDelayMs: Long = DEFAULT_USER_SERVICE_RETRY_DELAY_MS
+    private val userServiceRetryDelayMs: Long = DEFAULT_USER_SERVICE_RETRY_DELAY_MS,
+    private val wallClockMillis: () -> Long = System::currentTimeMillis
 ) {
 
     constructor(context: Context) : this(
@@ -207,7 +208,12 @@ class ShizukuTransportManager internal constructor(
                 }
             )
         } finally {
-            mutableState.update { it.copy(isRefreshing = false) }
+            mutableState.update {
+                it.copy(
+                    isRefreshing = false,
+                    lastCheckedAtMillis = wallClockMillis().coerceAtLeast(0L)
+                )
+            }
         }
 
         if (retryUserServiceAtMs > clockMs()) {
@@ -465,6 +471,9 @@ class ShizukuTransportManager internal constructor(
                 }
 
                 val status = refreshSafely(userServiceTransport)
+                mutableState.update {
+                    it.copy(lastCheckedAtMillis = wallClockMillis().coerceAtLeast(0L))
+                }
                 when (status.state) {
                     TransportAvailability.READY -> {
                         retryUserServiceAtMs = 0L
@@ -529,6 +538,7 @@ class ShizukuTransportManager internal constructor(
             isExecuting = false,
             activeTransport = result.transport,
             lastResult = result,
+            lastCommandAtMillis = wallClockMillis().coerceAtLeast(0L),
             userService = effectiveUserServiceStatus(),
             directProcess = directProcessTransport.status.value
         )
@@ -608,5 +618,7 @@ data class TransportManagerState(
     val activeTransport: CommandTransportType? = null,
     val lastResult: CommandResult? = null,
     val userServiceRetryAtMs: Long? = null,
-    val lastFallbackReason: String? = null
+    val lastFallbackReason: String? = null,
+    val lastCheckedAtMillis: Long? = null,
+    val lastCommandAtMillis: Long? = null
 )

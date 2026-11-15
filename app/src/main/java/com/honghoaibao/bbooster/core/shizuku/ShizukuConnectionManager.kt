@@ -8,7 +8,9 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import rikka.shizuku.Shizuku
 
-class ShizukuConnectionManager {
+class ShizukuConnectionManager(
+    private val clockMillis: () -> Long = System::currentTimeMillis
+) {
 
     companion object {
         private const val PERMISSION_REQUEST_CODE = 0xBB02
@@ -27,7 +29,9 @@ class ShizukuConnectionManager {
     private val binderDeadListener = Shizuku.OnBinderDeadListener {
         publishState(
             ShizukuConnectionState(
-                status = ShizukuConnectionStatus.SERVICE_NOT_RUNNING
+                status = ShizukuConnectionStatus.SERVICE_NOT_RUNNING,
+                binderAvailable = false,
+                lastErrorCode = ShizukuConnectionErrorCode.BINDER_UNAVAILABLE
             ),
             "binder_died"
         )
@@ -68,10 +72,19 @@ class ShizukuConnectionManager {
     }
 
     fun refresh() {
-        if (!Shizuku.pingBinder()) {
+        val binderCheck = runCatching { Shizuku.pingBinder() }
+        val binderAvailable = binderCheck.getOrDefault(false)
+        if (!binderAvailable) {
+            val errorCode = if (binderCheck.isFailure) {
+                ShizukuConnectionErrorCode.BINDER_CHECK_FAILED
+            } else {
+                ShizukuConnectionErrorCode.BINDER_UNAVAILABLE
+            }
             publishState(
                 ShizukuConnectionState(
-                    status = ShizukuConnectionStatus.SERVICE_NOT_RUNNING
+                    status = ShizukuConnectionStatus.SERVICE_NOT_RUNNING,
+                    binderAvailable = false,
+                    lastErrorCode = errorCode
                 ),
                 "binder_unavailable"
             )
@@ -79,32 +92,43 @@ class ShizukuConnectionManager {
         }
 
         try {
+            val serverVersion = Shizuku.getVersion().takeIf { it >= 0 }
             if (Shizuku.isPreV11()) {
                 publishState(
                     ShizukuConnectionState(
-                        status = ShizukuConnectionStatus.UNSUPPORTED_API
+                        status = ShizukuConnectionStatus.UNSUPPORTED_API,
+                        binderAvailable = true,
+                        serverVersion = serverVersion,
+                        lastErrorCode = ShizukuConnectionErrorCode.SERVER_UNSUPPORTED
                     ),
-                    "server_api_unsupported"
+                    "server_unsupported"
                 )
                 return
+            }
+
+            val uid = runCatching { Shizuku.getUid() }
+                .getOrNull()
+                ?.takeIf { it >= 0 }
+            val privilege = when (uid) {
+                0 -> ShizukuPrivilege.ROOT
+                2000 -> ShizukuPrivilege.ADB
+                else -> ShizukuPrivilege.UNKNOWN
             }
 
             if (Shizuku.checkSelfPermission() != PackageManager.PERMISSION_GRANTED) {
                 publishState(
                     ShizukuConnectionState(
-                        status = ShizukuConnectionStatus.PERMISSION_REQUIRED
+                        status = ShizukuConnectionStatus.PERMISSION_REQUIRED,
+                        privilege = privilege,
+                        serverUid = uid,
+                        binderAvailable = true,
+                        permissionGranted = false,
+                        serverVersion = serverVersion,
+                        lastErrorCode = ShizukuConnectionErrorCode.PERMISSION_REQUIRED
                     ),
                     "permission_required"
                 )
                 return
-            }
-
-            val uid = Shizuku.getUid()
-            val version = Shizuku.getVersion()
-            val privilege = when (uid) {
-                0 -> ShizukuPrivilege.ROOT
-                2000 -> ShizukuPrivilege.ADB
-                else -> ShizukuPrivilege.UNKNOWN
             }
 
             publishState(
@@ -112,21 +136,28 @@ class ShizukuConnectionManager {
                     status = ShizukuConnectionStatus.READY,
                     privilege = privilege,
                     serverUid = uid,
-                    serverVersion = version
+                    serverVersion = serverVersion,
+                    binderAvailable = true,
+                    permissionGranted = true
                 ),
                 "connection_ready"
             )
         } catch (_: SecurityException) {
             publishState(
                 ShizukuConnectionState(
-                    status = ShizukuConnectionStatus.PERMISSION_REQUIRED
+                    status = ShizukuConnectionStatus.PERMISSION_REQUIRED,
+                    binderAvailable = true,
+                    permissionGranted = false,
+                    lastErrorCode = ShizukuConnectionErrorCode.PERMISSION_CHECK_DENIED
                 ),
                 "permission_check_denied"
             )
         } catch (_: IllegalStateException) {
             publishState(
                 ShizukuConnectionState(
-                    status = ShizukuConnectionStatus.SERVICE_NOT_RUNNING
+                    status = ShizukuConnectionStatus.SERVICE_NOT_RUNNING,
+                    binderAvailable = false,
+                    lastErrorCode = ShizukuConnectionErrorCode.BINDER_STATE_INVALID
                 ),
                 "binder_state_invalid"
             )
@@ -138,7 +169,9 @@ class ShizukuConnectionManager {
             )
             publishState(
                 ShizukuConnectionState(
-                    status = ShizukuConnectionStatus.ERROR
+                    status = ShizukuConnectionStatus.ERROR,
+                    binderAvailable = true,
+                    lastErrorCode = ShizukuConnectionErrorCode.CONNECTION_CHECK_FAILED
                 ),
                 "connection_check_error"
             )
@@ -146,7 +179,7 @@ class ShizukuConnectionManager {
     }
 
     fun requestPermission() {
-        if (!Shizuku.pingBinder()) {
+        if (!safePingBinder()) {
             AppLog.warn(LogModule.SHIZUKU, "permission_request_skipped", "reason=binder_unavailable")
             refresh()
             return
@@ -164,7 +197,9 @@ class ShizukuConnectionManager {
 
             publishState(
                 ShizukuConnectionState(
-                    status = ShizukuConnectionStatus.REQUESTING_PERMISSION
+                    status = ShizukuConnectionStatus.REQUESTING_PERMISSION,
+                    binderAvailable = true,
+                    permissionGranted = false
                 ),
                 "permission_request_started"
             )
@@ -181,22 +216,56 @@ class ShizukuConnectionManager {
             )
             publishState(
                 ShizukuConnectionState(
-                    status = ShizukuConnectionStatus.ERROR
+                    status = ShizukuConnectionStatus.ERROR,
+                    binderAvailable = true,
+                    permissionGranted = false,
+                    lastErrorCode = ShizukuConnectionErrorCode.PERMISSION_REQUEST_FAILED
                 ),
                 "permission_request_error"
             )
         }
     }
 
+    private fun safePingBinder(): Boolean =
+        runCatching { Shizuku.pingBinder() }.getOrDefault(false)
+
     private fun publishState(next: ShizukuConnectionState, event: String) {
         val previous = mutableState.value
-        mutableState.value = next
-        if (previous == next) return
+        val now = clockMillis().coerceAtLeast(0L)
+        val connectedAt = when {
+            !next.binderAvailable -> null
+            previous.binderAvailable -> previous.connectedAtMillis ?: now
+            else -> now
+        }
+        val normalized = next.copy(
+            lastCheckedAtMillis = now,
+            connectedAtMillis = connectedAt,
+            lastErrorCode = next.lastErrorCode ?: previous.lastErrorCode,
+            lastErrorAtMillis = if (next.lastErrorCode != null) {
+                now
+            } else {
+                previous.lastErrorAtMillis
+            }
+        )
 
-        val message = "status=" + next.status.name +
-            "; uid=" + (next.serverUid?.toString() ?: "unavailable") +
-            "; serverVersion=" + (next.serverVersion?.toString() ?: "unavailable")
-        if (next.status == ShizukuConnectionStatus.ERROR) {
+        val meaningfulChange =
+            previous.status != normalized.status ||
+                previous.binderAvailable != normalized.binderAvailable ||
+                previous.permissionGranted != normalized.permissionGranted ||
+                previous.privilege != normalized.privilege ||
+                previous.serverUid != normalized.serverUid ||
+                previous.serverVersion != normalized.serverVersion ||
+                previous.lastErrorCode != normalized.lastErrorCode
+
+        mutableState.value = normalized
+        if (!meaningfulChange) return
+
+        val message = "status=" + normalized.status.name +
+            "; binder=" + normalized.binderAvailable +
+            "; permission=" + (normalized.permissionGranted?.toString() ?: "unknown") +
+            "; uid=" + (normalized.serverUid?.toString() ?: "unavailable") +
+            "; serverVersion=" + (normalized.serverVersion?.toString() ?: "unavailable")
+        if (normalized.status == ShizukuConnectionStatus.ERROR) {
             AppLog.warn(LogModule.SHIZUKU, event, message)
         } else {
             AppLog.info(LogModule.SHIZUKU, event, message)
