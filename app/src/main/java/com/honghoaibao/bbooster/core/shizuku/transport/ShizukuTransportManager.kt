@@ -51,18 +51,22 @@ private fun createShizukuAuthorizationContext(): CommandPolicyContext {
 }
 
 class ShizukuTransportManager internal constructor(
-    private val userServiceTransport: ShizukuTransport,
-    private val directProcessTransport: ShizukuTransport,
-    private val authorizationContextProvider: () -> CommandPolicyContext,
+    userServiceTransport: ShizukuTransport,
+    directProcessTransport: ShizukuTransport,
+    authorizationContextProvider: () -> CommandPolicyContext,
     private val clockMs: () -> Long = { System.nanoTime() / NANOS_PER_MILLISECOND },
     private val userServiceRetryDelayMs: Long = DEFAULT_USER_SERVICE_RETRY_DELAY_MS
 ) {
 
     constructor(context: Context) : this(
-        userServiceTransport = UserServiceTransport(context.applicationContext),
-        directProcessTransport = DirectProcessTransport(),
-        authorizationContextProvider = ::createShizukuAuthorizationContext
+        UserServiceTransport(context.applicationContext),
+        DirectProcessTransport(),
+        ::createShizukuAuthorizationContext
     )
+
+    private val userServiceTransport = userServiceTransport
+    private val directProcessTransport = directProcessTransport
+    private val authorizationContextProvider = authorizationContextProvider
 
     private val executionMutex = Mutex()
     private val mutableState = MutableStateFlow(TransportManagerState())
