@@ -72,11 +72,35 @@ class DiagnosticReportWriter(
                 .format(Instant.ofEpochMilli(generatedAtMillis.coerceAtLeast(0L)))
         }.getOrDefault(generatedAtMillis.coerceAtLeast(0L).toString())
         val baseName = FILE_PREFIX + timestamp
-        var candidate = File(directory, "$baseName.${format.extension}")
-        var suffix = 1
+        val extension = format.extension
+        val namePattern = Regex(
+            "^" + Regex.escape(baseName) +
+                "(?:-(\\d+))?\\." + Regex.escape(extension) + "$"
+        )
+        val highestExistingSuffix = directory.listFiles()
+            ?.asSequence()
+            ?.filter { it.isFile }
+            ?.mapNotNull { existing ->
+                val match = namePattern.matchEntire(existing.name) ?: return@mapNotNull null
+                match.groupValues[1].toIntOrNull() ?: 0
+            }
+            ?.maxOrNull()
+            ?: -1
+
+        var suffix = highestExistingSuffix + 1
+        fun fileForSuffix(value: Int): File {
+            val name = if (value == 0) {
+                "$baseName.$extension"
+            } else {
+                "$baseName-$value.$extension"
+            }
+            return File(directory, name)
+        }
+
+        var candidate = fileForSuffix(suffix)
         while (candidate.exists()) {
-            candidate = File(directory, "$baseName-$suffix.${format.extension}")
             suffix++
+            candidate = fileForSuffix(suffix)
         }
         return candidate
     }
@@ -109,6 +133,7 @@ class DiagnosticReportWriter(
         listReportFiles()
             .sortedWith(
                 compareByDescending<File> { it.lastModified() }
+                    .thenByDescending { reportFileSequence(it) }
                     .thenByDescending { it.name }
             )
             .drop(maxRetainedReports)
@@ -119,6 +144,20 @@ class DiagnosticReportWriter(
         directory.listFiles()
             ?.filter { file -> file.isFile && isReportFile(file) }
             .orEmpty()
+
+    /**
+     * Numeric collision suffix used only as a deterministic tie-breaker when
+     * multiple reports have the same filesystem modification time.
+     */
+    private fun reportFileSequence(file: File): Int {
+        val timestampAndSuffix = file.name
+            .removePrefix(FILE_PREFIX)
+            .substringBeforeLast('.')
+        if (timestampAndSuffix.length <= 15) return 0
+
+        val suffix = timestampAndSuffix.substringAfterLast('-', missingDelimiterValue = "")
+        return suffix.toIntOrNull() ?: 0
+    }
 
     private fun isReportFile(file: File): Boolean =
         file.isFile &&
