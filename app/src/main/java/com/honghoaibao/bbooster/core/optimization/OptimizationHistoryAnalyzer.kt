@@ -36,7 +36,7 @@ object OptimizationHistoryAnalyzer {
                 snapshot.memory?.let { memory ->
                     percentage(memory.totalBytes, memory.availableBytes)
                 }
-            }?.let(::add)
+            }?.let { add(it) }
 
             percentTrend(
                 snapshots = snapshots,
@@ -45,7 +45,7 @@ object OptimizationHistoryAnalyzer {
                 snapshot.storage?.let { storage ->
                     percentage(storage.totalBytes, storage.availableBytes)
                 }
-            }?.let(::add)
+            }?.let { add(it) }
 
             percentTrend(
                 snapshots = snapshots,
@@ -54,9 +54,9 @@ object OptimizationHistoryAnalyzer {
                 snapshot.battery?.levelPercent
                     ?.takeIf { it in 0..100 }
                     ?.toDouble()
-            }?.let(::add)
+            }?.let { add(it) }
 
-            thermalTrend(snapshots)?.let(::add)
+            thermalTrend(snapshots)?.let { add(it) }
         }
     }
 
