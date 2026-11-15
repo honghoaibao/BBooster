@@ -1,6 +1,5 @@
 package com.honghoaibao.bbooster.core.optimization
 
-import com.honghoaibao.bbooster.core.diagnostics.device.BatteryDiagnostics
 import com.honghoaibao.bbooster.core.diagnostics.device.DeviceDiagnostics
 import com.honghoaibao.bbooster.core.diagnostics.device.ThermalStatus
 import kotlin.math.abs

@@ -113,6 +113,7 @@ class OptimizationHistoryAnalyzerTest {
         val history = listOf(
             snapshot(timestamp = 0L, thermalStatus = ThermalStatus.NOT_SUPPORTED),
             snapshot(timestamp = 5_000L, thermalStatus = ThermalStatus.UNKNOWN),
+            snapshot(timestamp = 7_500L, thermalStatus = ThermalStatus.LIGHT),
             snapshot(timestamp = 10_000L, thermalStatus = ThermalStatus.MODERATE),
             snapshot(timestamp = 15_000L, thermalStatus = ThermalStatus.SEVERE)
         )
