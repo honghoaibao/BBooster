@@ -51,7 +51,7 @@ class ShizukuDiagnosticsMapperTest {
                 status = ShizukuConnectionStatus.PERMISSION_REQUIRED,
                 binderAvailable = true,
                 permissionGranted = false,
-                serverApiVersion = 13,
+                serverVersion = 13,
                 serverUid = 2000,
                 privilege = ShizukuPrivilege.ADB,
                 lastErrorCode = ShizukuConnectionErrorCode.PERMISSION_REQUIRED
