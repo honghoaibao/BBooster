@@ -16,7 +16,7 @@ import androidx.compose.runtime.setValue
 import androidx.core.os.LocaleListCompat
 import androidx.lifecycle.lifecycleScope
 import com.honghoaibao.bbooster.core.diagnostics.device.AndroidDeviceDiagnosticsProvider
-import com.honghoaibao.bbooster.core.diagnostics.device.DeviceDiagnostics
+import com.honghoaibao.bbooster.core.diagnostics.device.DeviceMonitoringController
 import com.honghoaibao.bbooster.core.diagnostics.report.AndroidDiagnosticReportSharer
 import com.honghoaibao.bbooster.core.diagnostics.report.DiagnosticReportCollector
 import com.honghoaibao.bbooster.core.diagnostics.report.DiagnosticReportFormat
@@ -46,7 +46,6 @@ class MainActivity : AppCompatActivity() {
 
     private var isPreparingReport by mutableStateOf(false)
     private var isRefreshingDeviceDiagnostics by mutableStateOf(false)
-    private var deviceDiagnostics by mutableStateOf<DeviceDiagnostics?>(null)
     private var isTestingTransport by mutableStateOf(false)
     private var lastTransportTestResult by mutableStateOf<TransportTestResult?>(null)
     private var developerSettings by mutableStateOf(DeveloperSettings())
@@ -54,6 +53,9 @@ class MainActivity : AppCompatActivity() {
     private val developerSettingsStore by lazy { DeveloperSettingsStore(applicationContext) }
     private val deviceDiagnosticsProvider by lazy {
         AndroidDeviceDiagnosticsProvider(applicationContext)
+    }
+    private val deviceMonitoringController by lazy {
+        DeviceMonitoringController(deviceDiagnosticsProvider)
     }
     private val shizukuConnectionManager by lazy { ShizukuConnectionManager() }
     private val transportManager by lazy { ShizukuTransportManager(this) }
@@ -76,6 +78,7 @@ class MainActivity : AppCompatActivity() {
         setContent {
             val shizukuState by shizukuConnectionManager.state.collectAsState()
             val transportState by transportManager.state.collectAsState()
+            val deviceDiagnostics by deviceMonitoringController.latestSnapshot.collectAsState()
             var showLogViewer by remember { mutableStateOf(false) }
             var showDeveloperSettings by remember { mutableStateOf(false) }
 
@@ -131,25 +134,27 @@ class MainActivity : AppCompatActivity() {
         super.onStart()
         shizukuConnectionManager.registerListeners()
         transportManager.setForeground(true)
+        deviceMonitoringController.start(lifecycleScope)
         AppLog.debug(LogModule.APP, "activity_foreground", "MainActivity entered foreground")
     }
 
     override fun onResume() {
         super.onResume()
         refreshConnections(forceUserServiceProbe = false)
-        refreshDeviceDiagnostics()
     }
 
     override fun onStop() {
         // Keep the UserService binding alive, but pause automatic recovery probes
         // while the app is backgrounded.
         AppLog.debug(LogModule.APP, "activity_background", "MainActivity left foreground")
+        deviceMonitoringController.stop()
         transportManager.setForeground(false)
         shizukuConnectionManager.unregisterListeners()
         super.onStop()
     }
 
     override fun onDestroy() {
+        deviceMonitoringController.stop()
         val manager = transportManager
         lifecycleScope.launch(NonCancellable + Dispatchers.IO) {
             manager.close()
@@ -180,7 +185,7 @@ class MainActivity : AppCompatActivity() {
 
         lifecycleScope.launch {
             try {
-                deviceDiagnostics = deviceDiagnosticsProvider.collect()
+                deviceMonitoringController.collectOnce()
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (error: Exception) {
