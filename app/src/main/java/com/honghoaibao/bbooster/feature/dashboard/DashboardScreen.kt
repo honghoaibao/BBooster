@@ -58,7 +58,8 @@ fun DashboardScreen(
     onOpenShizuku: () -> Unit,
     onRefreshShizuku: () -> Unit,
     onRunDiagnostics: () -> Unit,
-    onLanguageSelected: (String) -> Unit
+    onLanguageSelected: (String) -> Unit,
+    onOpenLogViewer: () -> Unit
 ) {
     Column(
         modifier = Modifier
@@ -98,6 +99,8 @@ fun DashboardScreen(
         )
 
         LanguageSelectorCard(selectedLanguage, onLanguageSelected)
+
+        DeveloperToolsCard(onOpenLogViewer)
 
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             SectionHeading(
@@ -165,6 +168,45 @@ fun DashboardScreen(
                 fontWeight = FontWeight.SemiBold,
                 letterSpacing = 1.sp,
                 modifier = Modifier.fillMaxWidth().padding(14.dp)
+            )
+        }
+    }
+}
+
+@Composable
+private fun DeveloperToolsCard(onOpenLogViewer: () -> Unit) {
+    Card(
+        colors = CardDefaults.cardColors(containerColor = DarkSlate),
+        border = BorderStroke(1.dp, SlateBorder),
+        shape = RoundedCornerShape(18.dp),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Text(
+                stringResource(R.string.devtools_title),
+                color = ElectricCyan,
+                fontSize = 10.sp,
+                fontWeight = FontWeight.Bold,
+                letterSpacing = 1.sp
+            )
+            Text(
+                stringResource(R.string.log_viewer_title),
+                color = SoftWhite,
+                fontSize = 16.sp,
+                fontWeight = FontWeight.SemiBold
+            )
+            Text(
+                stringResource(R.string.devtools_card_description),
+                color = MutedText,
+                fontSize = 12.sp,
+                lineHeight = 17.sp
+            )
+            ActionButton(
+                stringResource(R.string.devtools_open_logs),
+                onOpenLogViewer
             )
         }
     }

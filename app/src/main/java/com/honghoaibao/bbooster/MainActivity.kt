@@ -3,11 +3,15 @@ package com.honghoaibao.bbooster
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.core.os.LocaleListCompat
 import androidx.lifecycle.lifecycleScope
 import com.honghoaibao.bbooster.core.logging.AppLog
@@ -15,6 +19,7 @@ import com.honghoaibao.bbooster.core.logging.LogModule
 import com.honghoaibao.bbooster.core.shizuku.ShizukuConnectionManager
 import com.honghoaibao.bbooster.core.shizuku.transport.ShizukuTransportManager
 import com.honghoaibao.bbooster.feature.dashboard.DashboardScreen
+import com.honghoaibao.bbooster.feature.devtools.LogViewerScreen
 import com.honghoaibao.bbooster.ui.theme.BBoosterTheme
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
@@ -42,18 +47,28 @@ class MainActivity : AppCompatActivity() {
         setContent {
             val shizukuState by shizukuConnectionManager.state.collectAsState()
             val transportState by transportManager.state.collectAsState()
+            var showLogViewer by remember { mutableStateOf(false) }
+
+            BackHandler(enabled = showLogViewer) {
+                showLogViewer = false
+            }
 
             BBoosterTheme {
-                DashboardScreen(
-                    shizukuState = shizukuState,
-                    commandState = transportState,
-                    selectedLanguage = currentLanguageTag(),
-                    onRequestShizukuPermission = shizukuConnectionManager::requestPermission,
-                    onOpenShizuku = ::openShizuku,
-                    onRefreshShizuku = ::refreshConnections,
-                    onRunDiagnostics = ::runDiagnostics,
-                    onLanguageSelected = ::setLanguage
-                )
+                if (showLogViewer) {
+                    LogViewerScreen(onBack = { showLogViewer = false })
+                } else {
+                    DashboardScreen(
+                        shizukuState = shizukuState,
+                        commandState = transportState,
+                        selectedLanguage = currentLanguageTag(),
+                        onRequestShizukuPermission = shizukuConnectionManager::requestPermission,
+                        onOpenShizuku = ::openShizuku,
+                        onRefreshShizuku = ::refreshConnections,
+                        onRunDiagnostics = ::runDiagnostics,
+                        onLanguageSelected = ::setLanguage,
+                        onOpenLogViewer = { showLogViewer = true }
+                    )
+                }
             }
         }
     }

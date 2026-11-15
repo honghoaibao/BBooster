@@ -1,12 +1,16 @@
 package com.honghoaibao.bbooster.core.logging
 
 import java.io.File
-import java.util.concurrent.Executor
 import java.util.concurrent.CountDownLatch
+import java.util.concurrent.Executor
 import java.util.concurrent.Executors
 import java.util.concurrent.ThreadFactory
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 
 /**
  * Structured application logger. Writes are dispatched away from the caller
@@ -15,6 +19,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 class AppLogger(
     private val store: LogStore,
     private val writer: Executor,
+    private val onStoreChanged: () -> Unit = {},
     private val clockMillis: () -> Long = System::currentTimeMillis
 ) {
 
@@ -55,7 +60,10 @@ class AppLogger(
 
         runCatching {
             writer.execute {
-                runCatching { store.append(entry) }
+                runCatching {
+                    store.append(entry)
+                    onStoreChanged()
+                }
             }
         }
     }
@@ -82,9 +90,45 @@ class AppLogger(
             .takeLast(limit)
     }
 
+    fun sizeBytes(): Long = store.sizeBytes()
+
     fun clear() {
         runCatching {
-            writer.execute { runCatching { store.clear() } }
+            writer.execute {
+                runCatching {
+                    store.clear()
+                    onStoreChanged()
+                }
+            }
+        }
+    }
+
+    /**
+     * Clears logs after all previously queued writes and waits for completion.
+     * Call from an I/O dispatcher, never the UI thread.
+     */
+    fun clearAndWait(timeoutMillis: Long = DEFAULT_FLUSH_TIMEOUT_MS): Boolean {
+        if (timeoutMillis <= 0L) return false
+
+        val latch = CountDownLatch(1)
+        val succeeded = AtomicBoolean(false)
+        return try {
+            writer.execute {
+                succeeded.set(
+                    runCatching {
+                        store.clear()
+                        onStoreChanged()
+                        true
+                    }.getOrDefault(false)
+                )
+                latch.countDown()
+            }
+            latch.await(timeoutMillis, TimeUnit.MILLISECONDS) && succeeded.get()
+        } catch (_: InterruptedException) {
+            Thread.currentThread().interrupt()
+            false
+        } catch (_: RuntimeException) {
+            false
         }
     }
 
@@ -123,6 +167,9 @@ object AppLog {
         }
     )
 
+    private val mutableRevision = MutableStateFlow(0L)
+    val revision: StateFlow<Long> = mutableRevision.asStateFlow()
+
     @Volatile
     private var delegate: AppLogger? = null
 
@@ -131,7 +178,10 @@ object AppLog {
         if (delegate != null) return
         delegate = AppLogger(
             store = FileLogStore(directory),
-            writer = writer
+            writer = writer,
+            onStoreChanged = {
+                mutableRevision.update { current -> if (current == Long.MAX_VALUE) 0L else current + 1L }
+            }
         )
     }
 
@@ -158,9 +208,16 @@ object AppLog {
     fun readLogs(query: LogQuery = LogQuery()): List<LogEntry> =
         delegate?.query(query).orEmpty()
 
+    fun logSizeBytes(): Long = runCatching {
+        delegate?.sizeBytes() ?: 0L
+    }.getOrDefault(0L)
+
     fun clearLogs() {
         delegate?.clear()
     }
+
+    fun clearLogsAndWait(timeoutMillis: Long = 2_000L): Boolean =
+        delegate?.clearAndWait(timeoutMillis) ?: false
 
     fun flush(timeoutMillis: Long = 2_000L): Boolean =
         delegate?.flush(timeoutMillis) ?: true

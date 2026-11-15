@@ -3,6 +3,7 @@ package com.honghoaibao.bbooster.core.logging
 import java.nio.file.Files
 import java.util.concurrent.Executor
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -48,5 +49,40 @@ class AppLoggerTest {
 
         assertEquals(1, result.size)
         assertEquals("bind_timeout", result.single().event)
+    }
+
+    @Test
+    fun storeChangesAreReportedAfterAppendAndClear() {
+        val store = FileLogStore(Files.createTempDirectory("bbooster-revision").toFile())
+        var changes = 0
+        val logger = AppLogger(
+            store = store,
+            writer = directExecutor,
+            onStoreChanged = { changes++ },
+            clockMillis = { 789L }
+        )
+
+        logger.info(LogModule.APP, "revision_test", "first")
+        logger.warn(LogModule.APP, "revision_test", "second")
+
+        assertEquals(2, changes)
+        assertEquals(2, logger.query().size)
+        assertTrue(logger.sizeBytes() > 0L)
+
+        assertTrue(logger.clearAndWait())
+        assertEquals(3, changes)
+        assertEquals(0L, logger.sizeBytes())
+        assertTrue(logger.query().isEmpty())
+    }
+
+    @Test
+    fun clearAndWaitReturnsFalseWhenWriterRejectsWork() {
+        val store = FileLogStore(Files.createTempDirectory("bbooster-clear-wait").toFile())
+        val logger = AppLogger(
+            store = store,
+            writer = Executor { throw IllegalStateException("writer unavailable") }
+        )
+
+        assertFalse(logger.clearAndWait())
     }
 }
