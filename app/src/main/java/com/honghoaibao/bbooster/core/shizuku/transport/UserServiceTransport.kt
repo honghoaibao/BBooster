@@ -5,8 +5,9 @@ import android.content.Context
 import android.content.ServiceConnection
 import android.content.pm.PackageManager
 import android.os.IBinder
-import android.util.Log
 import com.honghoaibao.bbooster.BuildConfig
+import com.honghoaibao.bbooster.core.logging.AppLog
+import com.honghoaibao.bbooster.core.logging.LogModule
 import com.honghoaibao.bbooster.core.command.CommandCapability
 import com.honghoaibao.bbooster.core.command.CommandDefinition
 import com.honghoaibao.bbooster.core.command.CommandDispatchState
@@ -94,7 +95,7 @@ class UserServiceTransport(
                 remoteService = service
                 bindingOutcome.value = BindingOutcome.Connected(service)
                 mutableStatus.value = readyStatus()
-                Log.i(TAG, "UserService connected; binderPresent=true")
+                AppLog.info(LogModule.TRANSPORT, "user_service_connected", "binderPresent=true")
             }
 
             override fun onServiceDisconnected(name: ComponentName?) {
@@ -400,7 +401,7 @@ class UserServiceTransport(
                 Shizuku.unbindUserService(userServiceArgs, connection, true)
             }
         }
-        Log.w(TAG, detail)
+        AppLog.warn(LogModule.TRANSPORT, "user_service_connection_failed", detail)
     }
 
     private fun resetBinding(clearOutcome: Boolean = true) {
@@ -497,7 +498,6 @@ class UserServiceTransport(
     ) : Exception(message)
 
     private companion object {
-        const val TAG = "BBoosterUserServiceTransport"
         const val USER_SERVICE_TAG = "bbooster-command-service"
         const val USER_SERVICE_VERSION = 4
         const val USER_SERVICE_PROCESS_SUFFIX = "bbooster"

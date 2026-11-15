@@ -2,6 +2,8 @@ package com.honghoaibao.bbooster.core.shizuku.transport
 
 import android.content.Context
 import android.content.pm.PackageManager
+import com.honghoaibao.bbooster.core.logging.AppLog
+import com.honghoaibao.bbooster.core.logging.LogModule
 import com.honghoaibao.bbooster.core.command.CommandAuthorization
 import com.honghoaibao.bbooster.core.command.CommandDispatchState
 import com.honghoaibao.bbooster.core.command.CommandExecutionStatus
@@ -363,7 +365,9 @@ class ShizukuTransportManager internal constructor(
 
         return try {
             val result = transport.execute(definition)
-            if (result.commandId != actionId || result.transport != transport.type) {
+            val normalizedResult = if (
+                result.commandId != actionId || result.transport != transport.type
+            ) {
                 CommandResult(
                     commandId = actionId,
                     transport = transport.type,
@@ -375,18 +379,27 @@ class ShizukuTransportManager internal constructor(
             } else {
                 result
             }
+            logTransportResult(transport, normalizedResult)
+            normalizedResult
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (error: Exception) {
             // An exception escaping a transport does not prove that its remote
             // side did not receive the command. Treat it as UNKNOWN, never retry.
+            AppLog.warn(
+                LogModule.TRANSPORT,
+                "transport_execution_unknown",
+                "transport=" + transport.type.name +
+                    "; exception=" + error.javaClass.simpleName +
+                    "; dispatch=UNKNOWN"
+            )
             CommandResult(
                 commandId = actionId,
                 transport = transport.type,
                 status = CommandExecutionStatus.UNKNOWN,
                 dispatchState = CommandDispatchState.UNKNOWN,
                 failureCode = CommandFailureCode.INTERNAL_ERROR,
-                failureDetail = "Transport threw ${error.javaClass.simpleName}; dispatch outcome is unknown."
+                failureDetail = "Transport threw " + error.javaClass.simpleName + "; dispatch outcome is unknown."
             )
         }
     }
@@ -397,12 +410,36 @@ class ShizukuTransportManager internal constructor(
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (error: Exception) {
+            AppLog.warn(
+                LogModule.TRANSPORT,
+                "transport_refresh_failed",
+                "transport=" + transport.type.name +
+                    "; exception=" + error.javaClass.simpleName
+            )
             TransportStatus(
                 transport = transport.type,
                 state = TransportAvailability.DEGRADED,
-                detail = "Refresh failed: ${error.javaClass.simpleName}."
+                detail = "Refresh failed: " + error.javaClass.simpleName + "."
             )
         }
+
+    private fun logTransportResult(
+        transport: ShizukuTransport,
+        result: CommandResult
+    ) {
+        val summary = "transport=" + transport.type.name +
+            "; commandId=" + result.commandId +
+            "; status=" + result.status.name +
+            "; dispatch=" + result.dispatchState.name +
+            "; durationMs=" + result.durationMs +
+            "; failure=" + (result.failureCode?.name ?: "none")
+
+        if (result.isSuccess) {
+            AppLog.info(LogModule.TRANSPORT, "command_completed", summary)
+        } else {
+            AppLog.warn(LogModule.TRANSPORT, "command_not_completed", summary)
+        }
+    }
 
     private fun scheduleUserServiceRecovery() {
         if (

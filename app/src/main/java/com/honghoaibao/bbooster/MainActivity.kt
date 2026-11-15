@@ -10,6 +10,8 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.core.os.LocaleListCompat
 import androidx.lifecycle.lifecycleScope
+import com.honghoaibao.bbooster.core.logging.AppLog
+import com.honghoaibao.bbooster.core.logging.LogModule
 import com.honghoaibao.bbooster.core.shizuku.ShizukuConnectionManager
 import com.honghoaibao.bbooster.core.shizuku.transport.ShizukuTransportManager
 import com.honghoaibao.bbooster.feature.dashboard.DashboardScreen
@@ -17,6 +19,7 @@ import com.honghoaibao.bbooster.ui.theme.BBoosterTheme
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.launch
+import java.io.File
 
 class MainActivity : AppCompatActivity() {
 
@@ -25,6 +28,13 @@ class MainActivity : AppCompatActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        AppLog.initialize(File(filesDir, "diagnostics/logs"))
+        AppLog.info(
+            LogModule.APP,
+            "application_started",
+            "version=" + BuildConfig.VERSION_NAME
+        )
 
         window.statusBarColor = android.graphics.Color.rgb(11, 14, 20)
         window.navigationBarColor = android.graphics.Color.rgb(11, 14, 20)
@@ -52,6 +62,7 @@ class MainActivity : AppCompatActivity() {
         super.onStart()
         shizukuConnectionManager.registerListeners()
         transportManager.setForeground(true)
+        AppLog.debug(LogModule.APP, "activity_foreground", "MainActivity entered foreground")
     }
 
     override fun onResume() {
@@ -62,6 +73,7 @@ class MainActivity : AppCompatActivity() {
     override fun onStop() {
         // Keep the UserService binding alive, but pause automatic recovery probes
         // while the app is backgrounded.
+        AppLog.debug(LogModule.APP, "activity_background", "MainActivity left foreground")
         transportManager.setForeground(false)
         shizukuConnectionManager.unregisterListeners()
         super.onStop()
