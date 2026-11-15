@@ -295,7 +295,7 @@
     <string name="optimization_low_memory_detail">Tín hiệu thiếu bộ nhớ của Android đang hoạt động. Đây là tín hiệu toàn hệ thống, không xác định ứng dụng nào gây ra.</string>
     <string name="optimization_low_memory_action">Lưu công việc quan trọng và đóng các ứng dụng không còn cần thiết bằng công cụ thông thường của Android.</string>
     <string name="optimization_low_storage_title">Dung lượng lưu trữ trống thấp</string>
-    <string name="optimization_low_storage_detail">Dung lượng còn trống đang ở mức không quá ngưỡng cảnh báo 10%.</string>
+    <string name="optimization_low_storage_detail" formatted="false">Dung lượng còn trống đang ở mức không quá ngưỡng cảnh báo 10%.</string>
     <string name="optimization_low_storage_action">Kiểm tra các tệp tải xuống và tệp lớn mà anh nhận diện được. Sao lưu dữ liệu quan trọng trước khi xóa.</string>
     <string name="optimization_low_battery_title">Pin đang ở mức thấp</string>
     <string name="optimization_low_battery_detail">Pin còn không quá 20% và thiết bị đang sử dụng pin.</string>

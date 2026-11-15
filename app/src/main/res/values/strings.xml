@@ -295,7 +295,7 @@
     <string name="optimization_low_memory_detail">Android’s low-memory signal is active. This is a system-wide signal and does not identify which app is responsible.</string>
     <string name="optimization_low_memory_action">Save important work and close apps you no longer need using Android’s normal app controls.</string>
     <string name="optimization_low_storage_title">Low free storage</string>
-    <string name="optimization_low_storage_detail">Available storage is at or below the configured 10% advisory threshold.</string>
+    <string name="optimization_low_storage_detail" formatted="false">Available storage is at or below the configured 10% advisory threshold.</string>
     <string name="optimization_low_storage_action">Review large downloads and files you recognize. Back up anything important before deleting it.</string>
     <string name="optimization_low_battery_title">Battery level is low</string>
     <string name="optimization_low_battery_detail">Battery is at or below 20% while discharging.</string>

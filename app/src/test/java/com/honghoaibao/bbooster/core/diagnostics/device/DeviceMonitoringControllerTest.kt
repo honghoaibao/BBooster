@@ -1,36 +1,44 @@
 package com.honghoaibao.bbooster.core.diagnostics.device
 
 import java.util.concurrent.atomic.AtomicInteger
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.runBlocking
-import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.advanceTimeBy
+import kotlinx.coroutines.test.runCurrent
+import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class DeviceMonitoringControllerTest {
 
     @Test
-    fun startsImmediatelyAndStopsPollingWhenRequested() = runBlocking {
+    fun startsImmediatelyAndStopsPollingWhenRequested() = runTest {
         val provider = CountingDeviceDiagnosticsProvider()
         val controller = DeviceMonitoringController(
             provider = provider,
-            pollIntervalMillis = 20L
+            pollIntervalMillis = 20L,
+            dispatcher = StandardTestDispatcher(testScheduler)
         )
 
         controller.start(this)
         controller.start(this)
+        runCurrent()
 
-        withTimeout(1_000L) {
-            controller.samples.first { it.size >= 3 }
-        }
+        assertEquals(1, provider.calls.get())
+
+        advanceTimeBy(40L)
+        runCurrent()
+
+        assertTrue(provider.calls.get() >= 3)
 
         controller.stop()
         val callsAtStop = provider.calls.get()
-        delay(80L)
+        advanceTimeBy(80L)
+        runCurrent()
 
         assertFalse(controller.isMonitoring)
         assertEquals(callsAtStop, provider.calls.get())
@@ -38,52 +46,51 @@ class DeviceMonitoringControllerTest {
     }
 
     @Test
-    fun retainsOnlyTheConfiguredNumberOfMostRecentSamples() = runBlocking {
+    fun retainsOnlyTheConfiguredNumberOfMostRecentSamples() = runTest {
         val provider = CountingDeviceDiagnosticsProvider()
         val controller = DeviceMonitoringController(
             provider = provider,
             pollIntervalMillis = 5L,
-            maxSamples = 3
+            maxSamples = 3,
+            dispatcher = StandardTestDispatcher(testScheduler)
         )
 
         controller.start(this)
-        withTimeout(1_000L) {
-            controller.samples.first {
-                (it.lastOrNull()?.collectedAtMillis ?: 0L) >= 6L
-            }
-        }
+        runCurrent()
+        advanceTimeBy(26L)
+        runCurrent()
         controller.stop()
 
         val samples = controller.samples.value
         assertEquals(3, samples.size)
-        assertTrue(samples[0].collectedAtMillis < samples[1].collectedAtMillis)
-        assertTrue(samples[1].collectedAtMillis < samples[2].collectedAtMillis)
+        assertEquals(
+            listOf(4L, 5L, 6L),
+            samples.map { it.collectedAtMillis }
+        )
         assertEquals(samples.last(), controller.latestSnapshot.value)
     }
 
     @Test
-    fun stoppingAndStartingAgainRetainsExistingHistory() = runBlocking {
+    fun stoppingAndStartingAgainRetainsExistingHistory() = runTest {
         val provider = CountingDeviceDiagnosticsProvider()
         val controller = DeviceMonitoringController(
             provider = provider,
             pollIntervalMillis = 10L,
-            maxSamples = 5
+            maxSamples = 5,
+            dispatcher = StandardTestDispatcher(testScheduler)
         )
 
         controller.start(this)
-        withTimeout(1_000L) {
-            controller.samples.first { it.isNotEmpty() }
-        }
+        runCurrent()
         controller.stop()
         val previousCount = controller.samples.value.size
 
         controller.start(this)
-        withTimeout(1_000L) {
-            controller.samples.first { it.size > previousCount }
-        }
+        runCurrent()
         controller.stop()
 
-        assertTrue(controller.samples.value.size > previousCount)
+        assertEquals(1, previousCount)
+        assertEquals(2, controller.samples.value.size)
     }
 
     private class CountingDeviceDiagnosticsProvider : DeviceDiagnosticsProvider {
