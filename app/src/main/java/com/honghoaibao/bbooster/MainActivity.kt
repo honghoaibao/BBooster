@@ -52,6 +52,9 @@ class MainActivity : AppCompatActivity() {
     private var developerSettings by mutableStateOf(DeveloperSettings())
 
     private val developerSettingsStore by lazy { DeveloperSettingsStore(applicationContext) }
+    private val deviceDiagnosticsProvider by lazy {
+        AndroidDeviceDiagnosticsProvider(applicationContext)
+    }
     private val shizukuConnectionManager by lazy { ShizukuConnectionManager() }
     private val transportManager by lazy { ShizukuTransportManager(this) }
 
@@ -177,7 +180,7 @@ class MainActivity : AppCompatActivity() {
 
         lifecycleScope.launch {
             try {
-                deviceDiagnostics = AndroidDeviceDiagnosticsProvider(applicationContext).collect()
+                deviceDiagnostics = deviceDiagnosticsProvider.collect()
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (error: Exception) {
@@ -228,7 +231,7 @@ class MainActivity : AppCompatActivity() {
                     "format=" + format.name
                 )
                 val collector = DiagnosticReportCollector(
-                    deviceProvider = AndroidDeviceDiagnosticsProvider(applicationContext),
+                    deviceProvider = deviceDiagnosticsProvider,
                     shizukuProvider = ShizukuDiagnosticsProvider(
                         shizukuConnectionManager,
                         transportManager

@@ -36,6 +36,39 @@ class DeviceDiagnosticsMathTest {
     }
 
     @Test
+    fun calculatesProcessCpuPercentageAcrossLogicalProcessors() {
+        assertEquals(25.0, DeviceDiagnosticsMath.cpuUsagePercent(100L, 100L, 4)!!, 0.001)
+        assertEquals(6.25, DeviceDiagnosticsMath.cpuUsagePercent(25L, 100L, 4)!!, 0.001)
+        assertEquals(0.0, DeviceDiagnosticsMath.cpuUsagePercent(0L, 100L, 4)!!, 0.001)
+    }
+
+    @Test
+    fun rejectsInvalidCpuSamplingIntervals() {
+        assertNull(DeviceDiagnosticsMath.cpuUsagePercent(-1L, 100L, 4))
+        assertNull(DeviceDiagnosticsMath.cpuUsagePercent(10L, 0L, 4))
+        assertNull(DeviceDiagnosticsMath.cpuUsagePercent(10L, 100L, 0))
+    }
+
+    @Test
+    fun capsCpuUsageAtTotalLogicalCapacity() {
+        assertEquals(100.0, DeviceDiagnosticsMath.cpuUsagePercent(300L, 100L, 2)!!, 0.001)
+    }
+
+    @Test
+    fun mapsThermalStatusAndApiSupport() {
+        assertEquals(ThermalStatus.NOT_SUPPORTED, DeviceDiagnosticsMath.thermalStatus(28, 0))
+        assertEquals(ThermalStatus.NONE, DeviceDiagnosticsMath.thermalStatus(29, 0))
+        assertEquals(ThermalStatus.LIGHT, DeviceDiagnosticsMath.thermalStatus(29, 1))
+        assertEquals(ThermalStatus.MODERATE, DeviceDiagnosticsMath.thermalStatus(29, 2))
+        assertEquals(ThermalStatus.SEVERE, DeviceDiagnosticsMath.thermalStatus(29, 3))
+        assertEquals(ThermalStatus.CRITICAL, DeviceDiagnosticsMath.thermalStatus(29, 4))
+        assertEquals(ThermalStatus.EMERGENCY, DeviceDiagnosticsMath.thermalStatus(29, 5))
+        assertEquals(ThermalStatus.SHUTDOWN, DeviceDiagnosticsMath.thermalStatus(29, 6))
+        assertEquals(ThermalStatus.UNKNOWN, DeviceDiagnosticsMath.thermalStatus(29, null))
+        assertEquals(ThermalStatus.UNKNOWN, DeviceDiagnosticsMath.thermalStatus(35, 99))
+    }
+
+    @Test
     fun convertsBatteryTemperatureAndVoltage() {
         assertEquals(32.5, DeviceDiagnosticsMath.temperatureCelsius(325)!!, 0.001)
         assertNull(DeviceDiagnosticsMath.temperatureCelsius(-1))

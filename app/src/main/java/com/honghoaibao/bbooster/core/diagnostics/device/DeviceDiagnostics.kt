@@ -7,7 +7,16 @@ data class DeviceDiagnostics(
     val memory: MemoryDiagnostics?,
     val storage: StorageDiagnostics?,
     val battery: BatteryDiagnostics?,
-    val uptimeMillis: Long
+    val uptimeMillis: Long,
+    /**
+     * BBooster process CPU use as a percentage of the total logical CPU capacity.
+     * Null means that a valid interval has not been measured yet.
+     */
+    val processCpuUsagePercent: Double? = null,
+    /**
+     * Overall Android thermal-throttling status, not a direct CPU/GPU temperature.
+     */
+    val thermal: ThermalDiagnostics = ThermalDiagnostics(ThermalStatus.UNKNOWN)
 )
 
 data class AndroidDiagnostics(
@@ -43,6 +52,22 @@ data class BatteryDiagnostics(
     val temperatureCelsius: Double?,
     val voltageMillivolts: Int?
 )
+
+data class ThermalDiagnostics(
+    val status: ThermalStatus
+)
+
+enum class ThermalStatus {
+    NOT_SUPPORTED,
+    UNKNOWN,
+    NONE,
+    LIGHT,
+    MODERATE,
+    SEVERE,
+    CRITICAL,
+    EMERGENCY,
+    SHUTDOWN
+}
 
 enum class BatteryStatus {
     CHARGING,

@@ -7,6 +7,8 @@ import android.content.IntentFilter
 import android.os.BatteryManager
 import android.os.Build
 import android.os.Environment
+import android.os.PowerManager
+import android.os.Process
 import android.os.StatFs
 import android.os.SystemClock
 import com.honghoaibao.bbooster.core.logging.AppLog
@@ -14,12 +16,18 @@ import com.honghoaibao.bbooster.core.logging.LogModule
 import java.io.File
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 /**
  * Collects a point-in-time snapshot using public Android APIs only.
  *
  * No Shizuku, root, package enumeration or dangerous permissions are needed.
- * Missing system telemetry is represented as null at the relevant field.
+ * Missing system telemetry is represented explicitly instead of fabricating
+ * values or failing the entire snapshot.
+ *
+ * Keep one provider instance for the lifetime of the monitoring session so
+ * process CPU samples can be compared across collections.
  */
 class AndroidDeviceDiagnosticsProvider(
     context: Context,
@@ -28,11 +36,15 @@ class AndroidDeviceDiagnosticsProvider(
 ) : DeviceDiagnosticsProvider {
 
     private val applicationContext = context.applicationContext
+    private val processCpuUsageTracker = ProcessCpuUsageTracker()
+    private val processCpuSamplingMutex = Mutex()
 
     override suspend fun collect(): DeviceDiagnostics = withContext(Dispatchers.IO) {
         val memory = readMemory()
         val storage = readStorage()
         val battery = readBattery()
+        val processCpuUsage = readProcessCpuUsage()
+        val thermal = readThermal()
 
         val snapshot = DeviceDiagnostics(
             collectedAtMillis = clockMillis().coerceAtLeast(0L),
@@ -52,7 +64,9 @@ class AndroidDeviceDiagnosticsProvider(
             memory = memory,
             storage = storage,
             battery = battery,
-            uptimeMillis = uptimeMillis().coerceAtLeast(0L)
+            uptimeMillis = uptimeMillis().coerceAtLeast(0L),
+            processCpuUsagePercent = processCpuUsage,
+            thermal = thermal
         )
 
         AppLog.debug(
@@ -61,7 +75,9 @@ class AndroidDeviceDiagnosticsProvider(
             "sdk=" + snapshot.android.sdkLevel +
                 "; memoryAvailable=" + (memory != null) +
                 "; storageAvailable=" + (storage != null) +
-                "; batteryAvailable=" + (battery != null)
+                "; batteryAvailable=" + (battery != null) +
+                "; processCpuAvailable=" + (processCpuUsage != null) +
+                "; thermalStatus=" + thermal.status.name
         )
         snapshot
     }
@@ -107,6 +123,35 @@ class AndroidDeviceDiagnosticsProvider(
         StorageDiagnostics(
             totalBytes = totalBytes,
             availableBytes = availableBytes
+        )
+    }
+
+    private suspend fun readProcessCpuUsage(): Double? =
+        processCpuSamplingMutex.withLock {
+            readSafely("process_cpu_usage_read_failed") {
+                processCpuUsageTracker.sample(
+                    processCpuTimeMillis = Process.getElapsedCpuTime(),
+                    elapsedRealtimeMillis = SystemClock.elapsedRealtime(),
+                    processorCount = Runtime.getRuntime().availableProcessors()
+                )
+            }
+        }
+
+    private fun readThermal(): ThermalDiagnostics {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
+            return ThermalDiagnostics(ThermalStatus.NOT_SUPPORTED)
+        }
+
+        val rawStatus = readSafely("thermal_status_read_failed") {
+            val manager = applicationContext.getSystemService(Context.POWER_SERVICE)
+                as? PowerManager
+                ?: return@readSafely null
+
+            manager.getCurrentThermalStatus()
+        }
+
+        return ThermalDiagnostics(
+            DeviceDiagnosticsMath.thermalStatus(Build.VERSION.SDK_INT, rawStatus)
         )
     }
 

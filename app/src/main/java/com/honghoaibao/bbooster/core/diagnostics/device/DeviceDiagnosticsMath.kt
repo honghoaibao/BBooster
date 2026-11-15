@@ -25,6 +25,45 @@ internal object DeviceDiagnosticsMath {
         }
     }
 
+    /**
+     * Returns process CPU use as a percentage of total logical CPU capacity.
+     * A process using one full core on a four-core device is reported as 25%.
+     */
+    fun cpuUsagePercent(
+        cpuDeltaMillis: Long,
+        elapsedDeltaMillis: Long,
+        processorCount: Int
+    ): Double? {
+        if (cpuDeltaMillis < 0L || elapsedDeltaMillis <= 0L || processorCount <= 0) {
+            return null
+        }
+
+        val percent = (
+            cpuDeltaMillis.toDouble() / elapsedDeltaMillis.toDouble()
+            ) / processorCount.toDouble() * 100.0
+
+        return percent.takeIf { it.isFinite() }?.coerceIn(0.0, 100.0)
+    }
+
+    /**
+     * Maps the stable PowerManager thermal status integer values.
+     * API 29 introduced the public thermal status query.
+     */
+    fun thermalStatus(sdkLevel: Int, rawStatus: Int?): ThermalStatus {
+        if (sdkLevel < 29) return ThermalStatus.NOT_SUPPORTED
+
+        return when (rawStatus) {
+            0 -> ThermalStatus.NONE
+            1 -> ThermalStatus.LIGHT
+            2 -> ThermalStatus.MODERATE
+            3 -> ThermalStatus.SEVERE
+            4 -> ThermalStatus.CRITICAL
+            5 -> ThermalStatus.EMERGENCY
+            6 -> ThermalStatus.SHUTDOWN
+            else -> ThermalStatus.UNKNOWN
+        }
+    }
+
     fun temperatureCelsius(rawTenthsCelsius: Int): Double? {
         if (rawTenthsCelsius < 0) return null
         return rawTenthsCelsius / 10.0
