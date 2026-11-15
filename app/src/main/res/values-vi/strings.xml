@@ -300,4 +300,21 @@
     <string name="optimization_low_battery_title">Pin đang ở mức thấp</string>
     <string name="optimization_low_battery_detail">Pin còn không quá 20% và thiết bị đang sử dụng pin.</string>
     <string name="optimization_low_battery_action">Cân nhắc sạc pin trước một phiên chơi game dài.</string>
+    <string name="optimization_history_title">Xu hướng thiết bị gần đây</string>
+    <string name="optimization_history_subtitle">So sánh các snapshot hợp lệ gần đây về RAM khả dụng, dung lượng trống, mức pin và trạng thái nhiệt Android.</string>
+    <string name="optimization_history_insufficient_title">Chưa đủ dữ liệu lịch sử</string>
+    <string name="optimization_history_insufficient_detail">Hãy giữ BBooster ở foreground để monitoring thu thập ít nhất ba mẫu hợp lệ cho từng chỉ số. Chỉ làm mới một lần chưa đủ để xác định xu hướng.</string>
+    <string name="optimization_history_metric_ram">RAM khả dụng</string>
+    <string name="optimization_history_metric_storage">Dung lượng lưu trữ trống</string>
+    <string name="optimization_history_metric_battery">Mức pin</string>
+    <string name="optimization_history_metric_thermal">Trạng thái nhiệt Android</string>
+    <string name="optimization_history_improving">Đang cải thiện</string>
+    <string name="optimization_history_declining">Đang suy giảm</string>
+    <string name="optimization_history_stable">Ổn định</string>
+    <string name="optimization_history_cooling">Đang giảm nhiệt</string>
+    <string name="optimization_history_worsening">Đang tăng mức nhiệt</string>
+    <string name="optimization_history_percent_range">%1$d%% → %2$d%%</string>
+    <string name="optimization_history_thermal_range">%1$s → %2$s</string>
+    <string name="optimization_history_sample_count">%1$d mẫu hợp lệ</string>
+    <string name="optimization_history_note">Xu hướng chỉ dùng lịch sử gần đây trong RAM (tối đa 60 snapshot). Monitoring tạm dừng khi ứng dụng chạy nền và lịch sử không được giữ lại sau khi tiến trình ứng dụng kết thúc. RAM và lưu trữ là tỷ lệ dung lượng khả dụng/còn trống, không phải mức sử dụng của từng ứng dụng.</string>
 </resources>

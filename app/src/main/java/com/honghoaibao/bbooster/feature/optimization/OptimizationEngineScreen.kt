@@ -28,8 +28,14 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.honghoaibao.bbooster.R
 import com.honghoaibao.bbooster.core.diagnostics.device.DeviceDiagnostics
+import com.honghoaibao.bbooster.core.diagnostics.device.ThermalStatus
+import kotlin.math.roundToInt
 import com.honghoaibao.bbooster.core.optimization.OptimizationEngine
 import com.honghoaibao.bbooster.core.optimization.OptimizationFinding
+import com.honghoaibao.bbooster.core.optimization.OptimizationHistoryAnalyzer
+import com.honghoaibao.bbooster.core.optimization.OptimizationTrend
+import com.honghoaibao.bbooster.core.optimization.OptimizationTrendDirection
+import com.honghoaibao.bbooster.core.optimization.OptimizationTrendMetric
 import com.honghoaibao.bbooster.core.optimization.OptimizationPriority
 import com.honghoaibao.bbooster.core.optimization.OptimizationRule
 import com.honghoaibao.bbooster.ui.theme.Amber
@@ -44,11 +50,13 @@ import com.honghoaibao.bbooster.ui.theme.SoftWhite
 @Composable
 fun OptimizationEngineScreen(
     diagnostics: DeviceDiagnostics?,
+    telemetryHistory: List<DeviceDiagnostics>,
     isRefreshing: Boolean,
     onRefresh: () -> Unit,
     onBack: () -> Unit
 ) {
     val findings = OptimizationEngine.analyze(diagnostics)
+    val historyTrends = OptimizationHistoryAnalyzer.analyze(telemetryHistory)
 
     Column(
         modifier = Modifier
@@ -140,6 +148,8 @@ fun OptimizationEngineScreen(
                 }
             }
         }
+
+        OptimizationHistorySection(historyTrends)
 
         Text(
             stringResource(R.string.optimization_measurement_note),
@@ -259,4 +269,149 @@ private fun OptimizationFindingCard(finding: OptimizationFinding) {
             )
         }
     }
+}
+
+
+@Composable
+private fun OptimizationHistorySection(trends: List<OptimizationTrend>) {
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Text(
+            stringResource(R.string.optimization_history_title),
+            color = SoftWhite,
+            fontSize = 15.sp,
+            fontWeight = FontWeight.Bold
+        )
+        Text(
+            stringResource(R.string.optimization_history_subtitle),
+            color = MutedText,
+            fontSize = 12.sp,
+            lineHeight = 18.sp
+        )
+
+        if (trends.isEmpty()) {
+            EmptyStateCard(
+                title = stringResource(R.string.optimization_history_insufficient_title),
+                detail = stringResource(R.string.optimization_history_insufficient_detail)
+            )
+        } else {
+            trends.forEach { trend ->
+                OptimizationTrendCard(trend)
+            }
+        }
+
+        Text(
+            stringResource(R.string.optimization_history_note),
+            color = MutedText,
+            fontSize = 11.sp,
+            lineHeight = 17.sp
+        )
+    }
+}
+
+@Composable
+private fun OptimizationTrendCard(trend: OptimizationTrend) {
+    val metricLabel = when (trend.metric) {
+        OptimizationTrendMetric.AVAILABLE_RAM ->
+            R.string.optimization_history_metric_ram
+        OptimizationTrendMetric.FREE_STORAGE ->
+            R.string.optimization_history_metric_storage
+        OptimizationTrendMetric.BATTERY_LEVEL ->
+            R.string.optimization_history_metric_battery
+        OptimizationTrendMetric.THERMAL_STATUS ->
+            R.string.optimization_history_metric_thermal
+    }
+
+    val directionLabel = when (trend.metric) {
+        OptimizationTrendMetric.THERMAL_STATUS -> when (trend.direction) {
+            OptimizationTrendDirection.COOLING -> R.string.optimization_history_cooling
+            OptimizationTrendDirection.WORSENING -> R.string.optimization_history_worsening
+            else -> R.string.optimization_history_stable
+        }
+        else -> when (trend.direction) {
+            OptimizationTrendDirection.IMPROVING -> R.string.optimization_history_improving
+            OptimizationTrendDirection.DECLINING -> R.string.optimization_history_declining
+            else -> R.string.optimization_history_stable
+        }
+    }
+
+    val directionColor = when (trend.direction) {
+        OptimizationTrendDirection.IMPROVING,
+        OptimizationTrendDirection.COOLING -> Emerald
+        OptimizationTrendDirection.DECLINING,
+        OptimizationTrendDirection.WORSENING -> Amber
+        OptimizationTrendDirection.STABLE -> MutedText
+    }
+
+    val rangeText = if (trend.metric == OptimizationTrendMetric.THERMAL_STATUS) {
+        stringResource(
+            R.string.optimization_history_thermal_range,
+            stringResource(
+                thermalStatusString(
+                    OptimizationHistoryAnalyzer.thermalStatusForSeverity(trend.baselineValue)
+                )
+            ),
+            stringResource(
+                thermalStatusString(
+                    OptimizationHistoryAnalyzer.thermalStatusForSeverity(trend.latestValue)
+                )
+            )
+        )
+    } else {
+        stringResource(
+            R.string.optimization_history_percent_range,
+            trend.baselineValue.roundToInt().coerceIn(0, 100),
+            trend.latestValue.roundToInt().coerceIn(0, 100)
+        )
+    }
+
+    Card(
+        colors = CardDefaults.cardColors(containerColor = DarkSlate),
+        border = BorderStroke(1.dp, SlateBorder),
+        shape = RoundedCornerShape(16.dp),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            Text(
+                stringResource(metricLabel),
+                color = SoftWhite,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.SemiBold
+            )
+            Text(
+                stringResource(directionLabel),
+                color = directionColor,
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold
+            )
+            Text(
+                rangeText,
+                color = ElectricCyan,
+                fontSize = 13.sp,
+                fontWeight = FontWeight.SemiBold
+            )
+            Text(
+                stringResource(R.string.optimization_history_sample_count, trend.sampleCount),
+                color = MutedText,
+                fontSize = 11.sp
+            )
+        }
+    }
+}
+
+private fun thermalStatusString(status: ThermalStatus): Int = when (status) {
+    ThermalStatus.NOT_SUPPORTED -> R.string.device_thermal_not_supported
+    ThermalStatus.UNKNOWN -> R.string.device_thermal_unknown
+    ThermalStatus.NONE -> R.string.device_thermal_none
+    ThermalStatus.LIGHT -> R.string.device_thermal_light
+    ThermalStatus.MODERATE -> R.string.device_thermal_moderate
+    ThermalStatus.SEVERE -> R.string.device_thermal_severe
+    ThermalStatus.CRITICAL -> R.string.device_thermal_critical
+    ThermalStatus.EMERGENCY -> R.string.device_thermal_emergency
+    ThermalStatus.SHUTDOWN -> R.string.device_thermal_shutdown
 }

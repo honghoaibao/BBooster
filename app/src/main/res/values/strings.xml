@@ -300,4 +300,21 @@
     <string name="optimization_low_battery_title">Battery level is low</string>
     <string name="optimization_low_battery_detail">Battery is at or below 20% while discharging.</string>
     <string name="optimization_low_battery_action">Consider charging before a long gaming session.</string>
+    <string name="optimization_history_title">Recent device trends</string>
+    <string name="optimization_history_subtitle">Compare recent valid snapshots for available RAM, free storage, battery level, and Android thermal status.</string>
+    <string name="optimization_history_insufficient_title">Not enough history yet</string>
+    <string name="optimization_history_insufficient_detail">Keep BBooster open in the foreground while monitoring collects at least three valid samples for a metric. Refreshing once is not enough to establish a trend.</string>
+    <string name="optimization_history_metric_ram">Available RAM</string>
+    <string name="optimization_history_metric_storage">Free storage</string>
+    <string name="optimization_history_metric_battery">Battery level</string>
+    <string name="optimization_history_metric_thermal">Android thermal status</string>
+    <string name="optimization_history_improving">Improving</string>
+    <string name="optimization_history_declining">Declining</string>
+    <string name="optimization_history_stable">Stable</string>
+    <string name="optimization_history_cooling">Cooling</string>
+    <string name="optimization_history_worsening">Worsening</string>
+    <string name="optimization_history_percent_range">%1$d%% → %2$d%%</string>
+    <string name="optimization_history_thermal_range">%1$s → %2$s</string>
+    <string name="optimization_history_sample_count">%1$d valid samples</string>
+    <string name="optimization_history_note">Trends use the recent in-memory history only (up to 60 snapshots). Monitoring pauses in the background, and this history is not retained after the app process ends. RAM and storage values are available/free capacity percentages, not per-app usage.</string>
 </resources>

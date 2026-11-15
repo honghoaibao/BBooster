@@ -120,6 +120,7 @@ class MainActivity : AppCompatActivity() {
                     showOptimizationEngine -> {
                         OptimizationEngineScreen(
                             diagnostics = deviceDiagnostics,
+                            telemetryHistory = deviceTelemetryHistory,
                             isRefreshing = isRefreshingDeviceDiagnostics,
                             onRefresh = ::refreshDeviceDiagnostics,
                             onBack = { showOptimizationEngine = false }
