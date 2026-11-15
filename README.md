@@ -13,7 +13,8 @@ Native Android Game Booster built with Kotlin and Jetpack Compose.
 - Phase 4.3: Dashboard telemetry, CPU trend display, and TXT/JSON report history.
 - Phase 5: Dashboard information hierarchy, roadmap presentation, and compact developer tools.
 - Phase 6: read-only Diagnostics Hub for app runtime, device snapshot, Shizuku/transport state, monitoring history, and log health.
-- Upcoming: game library, carefully scoped optimization actions, recovery, and release hardening.
+- Phase 7.1: read-only Optimization Engine core with deterministic thermal, memory, storage, and battery findings plus unit-test coverage.
+- Upcoming: Optimization Engine UI and advisory explanations; any future device-changing action requires a separate explicit approval and recovery design.
 
 ## Technical baseline
 
