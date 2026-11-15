@@ -33,6 +33,10 @@ object DiagnosticReportFormatter {
             "version" to jsonString(safe(report.appVersion))
         ),
         "device" to report.device?.let(::deviceJson).orNullJson(),
+        "device_telemetry_history" to jsonArray(
+            report.deviceTelemetryHistory.takeLast(DiagnosticReportCollector.MAX_DEVICE_TELEMETRY_SAMPLES)
+                .map(::telemetrySampleJson)
+        ),
         "shizuku" to report.shizuku?.let(::shizukuJson).orNullJson(),
         "transports" to report.transports?.let(::transportsJson).orNullJson(),
         "recent_logs" to jsonArray(report.recentLogs.map(::logJson)),
@@ -66,6 +70,28 @@ object DiagnosticReportFormatter {
             appendMemory(device.memory)
             appendStorage(device.storage)
             appendBattery(device.battery)
+            appendLine("Process CPU usage: ${device.processCpuUsagePercent?.takeIf { it.isFinite() }?.let { "%.1f%%".format(java.util.Locale.ROOT, it) } ?: "Unavailable"}")
+            appendLine("Thermal status: ${device.thermal.status.name}")
+        }
+        appendLine()
+
+        appendLine("[DEVICE TELEMETRY HISTORY]")
+        val telemetryHistory = report.deviceTelemetryHistory
+            .takeLast(DiagnosticReportCollector.MAX_DEVICE_TELEMETRY_SAMPLES)
+        appendLine("Samples: ${telemetryHistory.size}")
+        if (telemetryHistory.isEmpty()) {
+            appendLine("No monitoring samples collected")
+        } else {
+            telemetryHistory.forEach { sample ->
+                val cpu = sample.processCpuUsagePercent
+                    ?.takeIf { it.isFinite() }
+                    ?.let { "%.1f%%".format(java.util.Locale.ROOT, it) }
+                    ?: "Unavailable"
+                appendLine(
+                    "${timestamp(sample.collectedAtMillis)} CPU=$cpu " +
+                        "thermal=${sample.thermal.status.name}"
+                )
+            }
         }
         appendLine()
 
@@ -153,7 +179,17 @@ object DiagnosticReportFormatter {
         "memory" to device.memory?.let(::memoryJson).orNullJson(),
         "storage" to device.storage?.let(::storageJson).orNullJson(),
         "battery" to device.battery?.let(::batteryJson).orNullJson(),
-        "uptime_millis" to device.uptimeMillis.toString()
+        "uptime_millis" to device.uptimeMillis.toString(),
+        "process_cpu_usage_percent" to device.processCpuUsagePercent
+            ?.takeIf { it.isFinite() }?.let(::jsonDouble).orNullJson(),
+        "thermal_status" to jsonString(device.thermal.status.name)
+    )
+
+    private fun telemetrySampleJson(sample: DeviceDiagnostics): String = jsonObject(
+        "collected_at" to jsonString(timestamp(sample.collectedAtMillis)),
+        "process_cpu_usage_percent" to sample.processCpuUsagePercent
+            ?.takeIf { it.isFinite() }?.let(::jsonDouble).orNullJson(),
+        "thermal_status" to jsonString(sample.thermal.status.name)
     )
 
     private fun memoryJson(memory: MemoryDiagnostics): String = jsonObject(

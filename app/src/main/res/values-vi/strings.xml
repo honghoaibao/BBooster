@@ -154,7 +154,7 @@
     <string name="devsettings_clear_success">Đã xóa dữ liệu chẩn đoán cục bộ.</string>
     <string name="devsettings_clear_failed">Một số tệp chẩn đoán chưa thể xóa.</string>
     <string name="devsettings_local_note">Các cài đặt này chỉ được lưu trên thiết bị. Chúng không thay đổi quyền Shizuku, chính sách lệnh hay hành vi của transport.</string>
-    <string name="device_telemetry_title">Dữ liệu thiết bị</string>
+    <string name="device_telemetry_title">Theo dõi thiết bị</string>
     <string name="device_refresh">Làm mới</string>
     <string name="device_refreshing">Đang thu thập thông tin thiết bị…</string>
     <string name="device_unavailable">Chưa thể đọc thông tin thiết bị. Hãy thử làm mới.</string>
@@ -195,4 +195,24 @@
     <string name="transport_test_dispatch_unknown">Không xác định trạng thái gửi</string>
     <string name="transport_test_dispatched_timeout">Hết thời gian chờ sau khi gửi</string>
     <string name="transport_test_command_failed">Lệnh thất bại</string>
+
+    <string name="phase_four">GIAI ĐOẠN 4 · THEO DÕI THIẾT BỊ</string>
+    <string name="device_telemetry_title">Theo dõi thiết bị</string>
+    <string name="device_monitoring_active">Đang theo dõi · %1$d/%2$d mẫu trong bộ nhớ</string>
+    <string name="device_monitoring_paused">Đã tạm dừng · %1$d/%2$d mẫu trong bộ nhớ</string>
+    <string name="device_cpu_usage">CPU của ứng dụng</string>
+    <string name="device_cpu_usage_value">%1$.1f%%</string>
+    <string name="device_thermal_status">Trạng thái nhiệt hệ thống</string>
+    <string name="device_thermal_explainer">Trạng thái nhiệt phản ánh cơ chế quản lý nhiệt của Android, không phải số đo nhiệt độ trực tiếp của CPU hoặc GPU.</string>
+    <string name="device_cpu_history">Mức sử dụng CPU gần đây</string>
+    <string name="device_cpu_history_empty">Đang chờ mẫu CPU hợp lệ…</string>
+    <string name="device_thermal_not_supported">Không hỗ trợ</string>
+    <string name="device_thermal_unknown">Không xác định</string>
+    <string name="device_thermal_none">Bình thường</string>
+    <string name="device_thermal_light">Nhẹ</string>
+    <string name="device_thermal_moderate">Trung bình</string>
+    <string name="device_thermal_severe">Nghiêm trọng</string>
+    <string name="device_thermal_critical">Rất nghiêm trọng</string>
+    <string name="device_thermal_emergency">Khẩn cấp</string>
+    <string name="device_thermal_shutdown">Tắt hệ thống</string>
 </resources>

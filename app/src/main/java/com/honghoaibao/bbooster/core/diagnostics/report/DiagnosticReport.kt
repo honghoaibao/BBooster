@@ -17,5 +17,6 @@ data class DiagnosticReport(
     val shizuku: ShizukuDiagnostics?,
     val transports: TransportDiagnosticsSnapshot?,
     val recentLogs: List<LogEntry>,
-    val collectionIssues: List<String>
+    val collectionIssues: List<String>,
+    val deviceTelemetryHistory: List<DeviceDiagnostics> = emptyList()
 )

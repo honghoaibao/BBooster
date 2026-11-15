@@ -1,5 +1,6 @@
 package com.honghoaibao.bbooster.core.diagnostics.report
 
+import com.honghoaibao.bbooster.core.diagnostics.device.DeviceDiagnostics
 import com.honghoaibao.bbooster.core.diagnostics.device.DeviceDiagnosticsProvider
 import com.honghoaibao.bbooster.core.diagnostics.shizuku.ShizukuDiagnosticsProvider
 import com.honghoaibao.bbooster.core.diagnostics.transport.TransportDiagnosticsProvider
@@ -21,7 +22,8 @@ class DiagnosticReportCollector(
     private val transportProvider: TransportDiagnosticsProvider,
     private val appVersion: String,
     private val clockMillis: () -> Long = System::currentTimeMillis,
-    private val maxLogEntries: Int = DEFAULT_MAX_LOG_ENTRIES
+    private val maxLogEntries: Int = DEFAULT_MAX_LOG_ENTRIES,
+    private val deviceTelemetryHistory: List<DeviceDiagnostics> = emptyList()
 ) {
 
     init {
@@ -35,6 +37,8 @@ class DiagnosticReportCollector(
         val device = capture { deviceProvider.collect() }
         val shizuku = capture { shizukuProvider.collect() }
         val transports = capture { transportProvider.snapshot() }
+        val telemetryHistory = (deviceTelemetryHistory + listOfNotNull(device))
+            .takeLast(MAX_DEVICE_TELEMETRY_SAMPLES)
         val logFlushCompleted = withContext(Dispatchers.IO) {
             AppLog.flush(LOG_FLUSH_TIMEOUT_MILLIS)
         }
@@ -63,6 +67,7 @@ class DiagnosticReportCollector(
                 "; shizuku=" + (shizuku != null) +
                 "; transports=" + (transports != null) +
                 "; logEntries=" + logs.size +
+                "; telemetrySamples=" + telemetryHistory.size +
                 "; issues=" + issues.size
         )
 
@@ -73,7 +78,8 @@ class DiagnosticReportCollector(
             shizuku = shizuku,
             transports = transports,
             recentLogs = logs,
-            collectionIssues = issues
+            collectionIssues = issues,
+            deviceTelemetryHistory = telemetryHistory
         )
     }
 
@@ -88,6 +94,7 @@ class DiagnosticReportCollector(
     companion object {
         const val DEFAULT_MAX_LOG_ENTRIES = 60
         const val MAX_ALLOWED_LOG_ENTRIES = 200
+        const val MAX_DEVICE_TELEMETRY_SAMPLES = 60
         private const val LOG_FLUSH_TIMEOUT_MILLIS = 2_500L
     }
 }

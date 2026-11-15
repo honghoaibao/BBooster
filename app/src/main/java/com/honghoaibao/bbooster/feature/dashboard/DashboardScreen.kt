@@ -1,6 +1,7 @@
 package com.honghoaibao.bbooster.feature.dashboard
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -25,7 +26,9 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -34,6 +37,8 @@ import androidx.compose.ui.unit.sp
 import com.honghoaibao.bbooster.R
 import com.honghoaibao.bbooster.core.diagnostics.device.BatteryStatus
 import com.honghoaibao.bbooster.core.diagnostics.device.DeviceDiagnostics
+import com.honghoaibao.bbooster.core.diagnostics.device.DeviceMonitoringController
+import com.honghoaibao.bbooster.core.diagnostics.device.ThermalStatus
 import com.honghoaibao.bbooster.core.diagnostics.report.DiagnosticReportFormat
 import com.honghoaibao.bbooster.core.diagnostics.transport.TransportTestOutcome
 import com.honghoaibao.bbooster.core.diagnostics.transport.TransportTestResult
@@ -68,6 +73,8 @@ fun DashboardScreen(
     onShareDiagnosticReport: (DiagnosticReportFormat) -> Unit,
     onOpenDeveloperSettings: () -> Unit,
     deviceDiagnostics: DeviceDiagnostics?,
+    deviceTelemetryHistory: List<DeviceDiagnostics>,
+    isDeviceMonitoring: Boolean,
     isRefreshingDeviceDiagnostics: Boolean,
     onRefreshDeviceDiagnostics: () -> Unit,
     lastTransportTestResult: TransportTestResult?,
@@ -129,10 +136,12 @@ fun DashboardScreen(
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             SectionHeading(
                 title = stringResource(R.string.section_device_overview),
-                trailing = stringResource(R.string.phase_three)
+                trailing = stringResource(R.string.phase_four)
             )
             DeviceOverviewCard(
                 diagnostics = deviceDiagnostics,
+                telemetryHistory = deviceTelemetryHistory,
+                isMonitoring = isDeviceMonitoring,
                 isRefreshing = isRefreshingDeviceDiagnostics,
                 onRefresh = onRefreshDeviceDiagnostics
             )
@@ -379,6 +388,8 @@ private fun DeveloperToolsCard(
 @Composable
 private fun DeviceOverviewCard(
     diagnostics: DeviceDiagnostics?,
+    telemetryHistory: List<DeviceDiagnostics>,
+    isMonitoring: Boolean,
     isRefreshing: Boolean,
     onRefresh: () -> Unit
 ) {
@@ -435,6 +446,18 @@ private fun DeviceOverviewCard(
                     }
                 }
             }
+
+            Text(
+                stringResource(
+                    if (isMonitoring) R.string.device_monitoring_active
+                    else R.string.device_monitoring_paused,
+                    telemetryHistory.size,
+                    DeviceMonitoringController.MAX_SAMPLES
+                ),
+                color = if (isMonitoring) Emerald else MutedText,
+                fontSize = 10.sp,
+                fontWeight = FontWeight.SemiBold
+            )
 
             if (diagnostics == null) {
                 Text(
@@ -502,6 +525,24 @@ private fun DeviceOverviewCard(
                     )
                 }
 
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    DeviceMetric(
+                        modifier = Modifier.weight(1f),
+                        label = stringResource(R.string.device_cpu_usage),
+                        value = diagnostics.processCpuUsagePercent?.let {
+                            stringResource(R.string.device_cpu_usage_value, it)
+                        } ?: stringResource(R.string.device_value_unavailable)
+                    )
+                    DeviceMetric(
+                        modifier = Modifier.weight(1f),
+                        label = stringResource(R.string.device_thermal_status),
+                        value = diagnostics.thermal.status.localizedLabel()
+                    )
+                }
+
                 diagnostics.memory?.takeIf { it.isLowMemory }?.let {
                     Text(
                         stringResource(R.string.device_low_memory_warning),
@@ -534,6 +575,67 @@ private fun DeviceOverviewCard(
                     color = MutedText,
                     fontSize = 10.sp
                 )
+                CpuHistorySparkline(telemetryHistory)
+                Text(
+                    stringResource(R.string.device_thermal_explainer),
+                    color = MutedText,
+                    fontSize = 10.sp,
+                    lineHeight = 14.sp
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun CpuHistorySparkline(history: List<DeviceDiagnostics>) {
+    val values = history.mapNotNull { sample ->
+        sample.processCpuUsagePercent?.takeIf { it.isFinite() }
+    }.takeLast(24)
+
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(6.dp)
+    ) {
+        Text(
+            stringResource(R.string.device_cpu_history),
+            color = MutedText,
+            fontSize = 10.sp,
+            fontWeight = FontWeight.Medium
+        )
+        if (values.isEmpty()) {
+            Text(
+                stringResource(R.string.device_cpu_history_empty),
+                color = MutedText,
+                fontSize = 10.sp
+            )
+        } else {
+            Canvas(
+                modifier = Modifier.fillMaxWidth().height(34.dp)
+            ) {
+                val points = values.mapIndexed { index, value ->
+                    val x = if (values.size == 1) {
+                        size.width / 2f
+                    } else {
+                        index.toFloat() / (values.size - 1).toFloat() * size.width
+                    }
+                    val normalized = value.coerceIn(0.0, 100.0).toFloat() / 100f
+                    val y = size.height - 3f - normalized * (size.height - 6f)
+                    Offset(x, y)
+                }
+                if (points.size == 1) {
+                    drawCircle(ElectricCyan, radius = 3.5f, center = points.first())
+                } else {
+                    points.zipWithNext().forEach { (start, end) ->
+                        drawLine(
+                            color = ElectricCyan,
+                            start = start,
+                            end = end,
+                            strokeWidth = 3f,
+                            cap = StrokeCap.Round
+                        )
+                    }
+                }
             }
         }
     }
@@ -677,6 +779,19 @@ private fun DeviceMetric(
             )
         }
     }
+}
+
+@Composable
+private fun ThermalStatus.localizedLabel(): String = when (this) {
+    ThermalStatus.NOT_SUPPORTED -> stringResource(R.string.device_thermal_not_supported)
+    ThermalStatus.UNKNOWN -> stringResource(R.string.device_thermal_unknown)
+    ThermalStatus.NONE -> stringResource(R.string.device_thermal_none)
+    ThermalStatus.LIGHT -> stringResource(R.string.device_thermal_light)
+    ThermalStatus.MODERATE -> stringResource(R.string.device_thermal_moderate)
+    ThermalStatus.SEVERE -> stringResource(R.string.device_thermal_severe)
+    ThermalStatus.CRITICAL -> stringResource(R.string.device_thermal_critical)
+    ThermalStatus.EMERGENCY -> stringResource(R.string.device_thermal_emergency)
+    ThermalStatus.SHUTDOWN -> stringResource(R.string.device_thermal_shutdown)
 }
 
 @Composable

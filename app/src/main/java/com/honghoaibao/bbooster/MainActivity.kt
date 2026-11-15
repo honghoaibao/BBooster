@@ -46,6 +46,7 @@ class MainActivity : AppCompatActivity() {
 
     private var isPreparingReport by mutableStateOf(false)
     private var isRefreshingDeviceDiagnostics by mutableStateOf(false)
+    private var isDeviceMonitoring by mutableStateOf(false)
     private var isTestingTransport by mutableStateOf(false)
     private var lastTransportTestResult by mutableStateOf<TransportTestResult?>(null)
     private var developerSettings by mutableStateOf(DeveloperSettings())
@@ -79,6 +80,7 @@ class MainActivity : AppCompatActivity() {
             val shizukuState by shizukuConnectionManager.state.collectAsState()
             val transportState by transportManager.state.collectAsState()
             val deviceDiagnostics by deviceMonitoringController.latestSnapshot.collectAsState()
+            val deviceTelemetryHistory by deviceMonitoringController.samples.collectAsState()
             var showLogViewer by remember { mutableStateOf(false) }
             var showDeveloperSettings by remember { mutableStateOf(false) }
 
@@ -115,6 +117,8 @@ class MainActivity : AppCompatActivity() {
                             onShareDiagnosticReport = ::shareDiagnosticReport,
                             onOpenDeveloperSettings = { showDeveloperSettings = true },
                             deviceDiagnostics = deviceDiagnostics,
+                            deviceTelemetryHistory = deviceTelemetryHistory,
+                            isDeviceMonitoring = isDeviceMonitoring,
                             isRefreshingDeviceDiagnostics = isRefreshingDeviceDiagnostics,
                             onRefreshDeviceDiagnostics = ::refreshDeviceDiagnostics,
                             lastTransportTestResult = lastTransportTestResult,
@@ -135,6 +139,7 @@ class MainActivity : AppCompatActivity() {
         shizukuConnectionManager.registerListeners()
         transportManager.setForeground(true)
         deviceMonitoringController.start(lifecycleScope)
+        isDeviceMonitoring = true
         AppLog.debug(LogModule.APP, "activity_foreground", "MainActivity entered foreground")
     }
 
@@ -148,6 +153,7 @@ class MainActivity : AppCompatActivity() {
         // while the app is backgrounded.
         AppLog.debug(LogModule.APP, "activity_background", "MainActivity left foreground")
         deviceMonitoringController.stop()
+        isDeviceMonitoring = false
         transportManager.setForeground(false)
         shizukuConnectionManager.unregisterListeners()
         super.onStop()
@@ -242,7 +248,9 @@ class MainActivity : AppCompatActivity() {
                         transportManager
                     ),
                     transportProvider = TransportDiagnosticsProvider(transportManager),
-                    appVersion = BuildConfig.VERSION_NAME
+                    appVersion = BuildConfig.VERSION_NAME,
+                    deviceTelemetryHistory = deviceMonitoringController.samples.value
+                        .takeLast(DeviceMonitoringController.MAX_SAMPLES)
                 )
                 val report = collector.collect()
                 val file = DiagnosticReportWriter(

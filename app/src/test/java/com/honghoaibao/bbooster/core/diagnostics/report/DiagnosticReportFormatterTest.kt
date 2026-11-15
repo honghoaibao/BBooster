@@ -19,6 +19,9 @@ class DiagnosticReportFormatterTest {
         assertTrue(output.startsWith("{"))
         assertTrue(output.contains("\"schema_version\":1"))
         assertTrue(output.contains("\"device\":{"))
+        assertTrue(output.contains("\"device_telemetry_history\":["))
+        assertTrue(output.contains("\"process_cpu_usage_percent\":12.5"))
+        assertTrue(output.contains("\"thermal_status\":\"MODERATE\""))
         assertTrue(output.contains("\"shizuku\":null"))
         assertTrue(output.contains("\"transports\":null"))
         assertTrue(output.contains("\"recent_logs\":["))
@@ -59,6 +62,9 @@ class DiagnosticReportFormatterTest {
         val output = DiagnosticReportFormatter.toText(sampleReport())
 
         assertTrue(output.contains("[DEVICE]"))
+        assertTrue(output.contains("[DEVICE TELEMETRY HISTORY]"))
+        assertTrue(output.contains("CPU=12.5%"))
+        assertTrue(output.contains("thermal=MODERATE"))
         assertTrue(output.contains("[SHIZUKU]"))
         assertTrue(output.contains("[TRANSPORTS]"))
         assertTrue(output.contains("[RECENT LOGS]"))
@@ -96,6 +102,25 @@ class DiagnosticReportFormatterTest {
                 message = logMessage
             )
         ),
-        collectionIssues = emptyList()
+        collectionIssues = emptyList(),
+        deviceTelemetryHistory = listOf(
+            DeviceDiagnostics(
+                collectedAtMillis = 1_700_000_000_000L,
+                android = AndroidDiagnostics(release = "15", sdkLevel = 35),
+                device = DeviceHardwareDiagnostics(
+                    manufacturer = "Example",
+                    model = "Telemetry sample",
+                    cpuAbis = listOf("arm64-v8a")
+                ),
+                memory = null,
+                storage = null,
+                battery = null,
+                uptimeMillis = 60_000L,
+                processCpuUsagePercent = 12.5,
+                thermal = com.honghoaibao.bbooster.core.diagnostics.device.ThermalDiagnostics(
+                    com.honghoaibao.bbooster.core.diagnostics.device.ThermalStatus.MODERATE
+                )
+            )
+        )
     )
 }

@@ -154,7 +154,7 @@
     <string name="devsettings_clear_success">Local diagnostic data cleared.</string>
     <string name="devsettings_clear_failed">Some diagnostic files could not be deleted.</string>
     <string name="devsettings_local_note">These settings are stored only on this device. They do not change Shizuku permissions, command policies or transport behavior.</string>
-    <string name="device_telemetry_title">Live device telemetry</string>
+    <string name="device_telemetry_title">Device monitoring</string>
     <string name="device_refresh">Refresh</string>
     <string name="device_refreshing">Collecting device information…</string>
     <string name="device_unavailable">Device information is unavailable. Try refreshing.</string>
@@ -195,4 +195,24 @@
     <string name="transport_test_dispatch_unknown">Dispatch unknown</string>
     <string name="transport_test_dispatched_timeout">Timed out after dispatch</string>
     <string name="transport_test_command_failed">Command failed</string>
+
+    <string name="phase_four">PHASE 4 · DEVICE MONITORING</string>
+    <string name="device_telemetry_title">Device monitoring</string>
+    <string name="device_monitoring_active">Monitoring active · %1$d/%2$d samples in memory</string>
+    <string name="device_monitoring_paused">Monitoring paused · %1$d/%2$d samples in memory</string>
+    <string name="device_cpu_usage">App CPU usage</string>
+    <string name="device_cpu_usage_value">%1$.1f%%</string>
+    <string name="device_thermal_status">System thermal status</string>
+    <string name="device_thermal_explainer">Thermal status reflects Android thermal management, not a direct CPU or GPU temperature reading.</string>
+    <string name="device_cpu_history">Recent app CPU usage</string>
+    <string name="device_cpu_history_empty">Waiting for valid CPU samples…</string>
+    <string name="device_thermal_not_supported">Not supported</string>
+    <string name="device_thermal_unknown">Unknown</string>
+    <string name="device_thermal_none">Normal</string>
+    <string name="device_thermal_light">Light</string>
+    <string name="device_thermal_moderate">Moderate</string>
+    <string name="device_thermal_severe">Severe</string>
+    <string name="device_thermal_critical">Critical</string>
+    <string name="device_thermal_emergency">Emergency</string>
+    <string name="device_thermal_shutdown">Shutdown</string>
 </resources>
