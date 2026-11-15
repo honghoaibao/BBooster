@@ -75,6 +75,7 @@ fun DashboardScreen(
     onLanguageSelected: (String) -> Unit,
     onOpenLogViewer: () -> Unit,
     onOpenDiagnosticsHub: () -> Unit,
+    onOpenOptimizationEngine: () -> Unit,
     onShareDiagnosticReport: (DiagnosticReportFormat) -> Unit,
     onOpenDeveloperSettings: () -> Unit,
     deviceDiagnostics: DeviceDiagnostics?,
@@ -151,8 +152,9 @@ fun DashboardScreen(
                 stringResource(R.string.game_library_description)
             )
             FeatureCard(
-                stringResource(R.string.optimization_engine),
-                stringResource(R.string.optimization_engine_description)
+                title = stringResource(R.string.optimization_engine),
+                description = stringResource(R.string.optimization_engine_description),
+                onClick = onOpenOptimizationEngine
             )
             FeatureCard(
                 stringResource(R.string.session_recovery),
@@ -1296,8 +1298,14 @@ private fun SectionHeading(title: String, trailing: String) {
 }
 
 @Composable
-private fun FeatureCard(title: String, description: String) {
+private fun FeatureCard(
+    title: String,
+    description: String,
+    onClick: (() -> Unit)? = null
+) {
     Card(
+        onClick = { onClick?.invoke() },
+        enabled = onClick != null,
         colors = CardDefaults.cardColors(containerColor = DarkSlate),
         border = BorderStroke(1.dp, SlateBorder),
         shape = RoundedCornerShape(18.dp),
@@ -1328,7 +1336,7 @@ private fun FeatureCard(title: String, description: String) {
                 )
             }
             Text(
-                stringResource(R.string.soon),
+                stringResource(if (onClick != null) R.string.optimization_open else R.string.soon),
                 color = ElectricCyan,
                 fontSize = 9.sp,
                 fontWeight = FontWeight.Bold,

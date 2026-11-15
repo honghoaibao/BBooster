@@ -36,6 +36,7 @@ import com.honghoaibao.bbooster.feature.dashboard.DashboardScreen
 import com.honghoaibao.bbooster.feature.devtools.DeveloperSettingsScreen
 import com.honghoaibao.bbooster.feature.devtools.DiagnosticsHubScreen
 import com.honghoaibao.bbooster.feature.devtools.LogViewerScreen
+import com.honghoaibao.bbooster.feature.optimization.OptimizationEngineScreen
 import com.honghoaibao.bbooster.ui.theme.BBoosterTheme
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -85,14 +86,20 @@ class MainActivity : AppCompatActivity() {
             var showLogViewer by remember { mutableStateOf(false) }
             var showDeveloperSettings by remember { mutableStateOf(false) }
             var showDiagnosticsHub by remember { mutableStateOf(false) }
+            var showOptimizationEngine by remember { mutableStateOf(false) }
 
-            BackHandler(enabled = showLogViewer || showDeveloperSettings || showDiagnosticsHub) {
+            BackHandler(
+                enabled = showLogViewer || showDeveloperSettings ||
+                    showDiagnosticsHub || showOptimizationEngine
+            ) {
                 if (showLogViewer) {
                     showLogViewer = false
                 } else if (showDeveloperSettings) {
                     showDeveloperSettings = false
-                } else {
+                } else if (showDiagnosticsHub) {
                     showDiagnosticsHub = false
+                } else {
+                    showOptimizationEngine = false
                 }
             }
 
@@ -108,6 +115,14 @@ class MainActivity : AppCompatActivity() {
                             onBack = { showDeveloperSettings = false },
                             onVerboseLoggingChanged = ::setVerboseLogging,
                             onReportRetentionChanged = ::setReportRetention
+                        )
+                    }
+                    showOptimizationEngine -> {
+                        OptimizationEngineScreen(
+                            diagnostics = deviceDiagnostics,
+                            isRefreshing = isRefreshingDeviceDiagnostics,
+                            onRefresh = ::refreshDeviceDiagnostics,
+                            onBack = { showOptimizationEngine = false }
                         )
                     }
                     showDiagnosticsHub -> {
@@ -137,6 +152,7 @@ class MainActivity : AppCompatActivity() {
                             onLanguageSelected = ::setLanguage,
                             onOpenLogViewer = { showLogViewer = true },
                             onOpenDiagnosticsHub = { showDiagnosticsHub = true },
+                            onOpenOptimizationEngine = { showOptimizationEngine = true },
                             onShareDiagnosticReport = ::shareDiagnosticReport,
                             onOpenDeveloperSettings = { showDeveloperSettings = true },
                             deviceDiagnostics = deviceDiagnostics,
