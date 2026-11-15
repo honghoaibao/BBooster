@@ -39,7 +39,7 @@ class ShizukuDiagnosticsMapperTest {
 
         assertEquals(13, diagnostics.serverApiVersion)
         assertEquals(2000, diagnostics.serverUid)
-        assertEquals(3_000L, diagnostics.connectionDurationMillis ?: -1L)
+        assertEquals(4_000L, diagnostics.connectionDurationMillis ?: -1L)
         assertTrue(diagnostics.binderAvailable)
         assertTrue(diagnostics.permissionGranted == true)
     }
