@@ -16,22 +16,27 @@ import androidx.compose.runtime.setValue
 import androidx.core.os.LocaleListCompat
 import androidx.lifecycle.lifecycleScope
 import com.honghoaibao.bbooster.core.diagnostics.device.AndroidDeviceDiagnosticsProvider
+import com.honghoaibao.bbooster.core.diagnostics.device.DeviceDiagnostics
 import com.honghoaibao.bbooster.core.diagnostics.report.AndroidDiagnosticReportSharer
 import com.honghoaibao.bbooster.core.diagnostics.report.DiagnosticReportCollector
 import com.honghoaibao.bbooster.core.diagnostics.report.DiagnosticReportFormat
 import com.honghoaibao.bbooster.core.diagnostics.report.DiagnosticReportWriter
 import com.honghoaibao.bbooster.core.diagnostics.shizuku.ShizukuDiagnosticsProvider
 import com.honghoaibao.bbooster.core.diagnostics.transport.TransportDiagnosticsProvider
+import com.honghoaibao.bbooster.core.diagnostics.transport.TransportTestResult
+import com.honghoaibao.bbooster.core.command.CommandTransportType
 import com.honghoaibao.bbooster.core.settings.DeveloperSettings
 import com.honghoaibao.bbooster.core.settings.DeveloperSettingsStore
 import com.honghoaibao.bbooster.core.logging.AppLog
 import com.honghoaibao.bbooster.core.logging.LogModule
 import com.honghoaibao.bbooster.core.shizuku.ShizukuConnectionManager
+import com.honghoaibao.bbooster.core.shizuku.ShizukuConnectionStatus
 import com.honghoaibao.bbooster.core.shizuku.transport.ShizukuTransportManager
 import com.honghoaibao.bbooster.feature.dashboard.DashboardScreen
 import com.honghoaibao.bbooster.feature.devtools.DeveloperSettingsScreen
 import com.honghoaibao.bbooster.feature.devtools.LogViewerScreen
 import com.honghoaibao.bbooster.ui.theme.BBoosterTheme
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.launch
@@ -40,6 +45,10 @@ import java.io.File
 class MainActivity : AppCompatActivity() {
 
     private var isPreparingReport by mutableStateOf(false)
+    private var isRefreshingDeviceDiagnostics by mutableStateOf(false)
+    private var deviceDiagnostics by mutableStateOf<DeviceDiagnostics?>(null)
+    private var isTestingTransport by mutableStateOf(false)
+    private var lastTransportTestResult by mutableStateOf<TransportTestResult?>(null)
     private var developerSettings by mutableStateOf(DeveloperSettings())
 
     private val developerSettingsStore by lazy { DeveloperSettingsStore(applicationContext) }
@@ -99,6 +108,14 @@ class MainActivity : AppCompatActivity() {
                             onOpenLogViewer = { showLogViewer = true },
                             onShareDiagnosticReport = ::shareDiagnosticReport,
                             onOpenDeveloperSettings = { showDeveloperSettings = true },
+                            deviceDiagnostics = deviceDiagnostics,
+                            isRefreshingDeviceDiagnostics = isRefreshingDeviceDiagnostics,
+                            onRefreshDeviceDiagnostics = ::refreshDeviceDiagnostics,
+                            lastTransportTestResult = lastTransportTestResult,
+                            isTestingTransport = isTestingTransport,
+                            canTestTransport = shizukuState.status == ShizukuConnectionStatus.READY &&
+                                !transportState.isExecuting && !transportState.isRefreshing,
+                            onTestTransport = ::testTransport,
                             isPreparingReport = isPreparingReport
                         )
                     }
@@ -117,6 +134,7 @@ class MainActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         refreshConnections(forceUserServiceProbe = false)
+        refreshDeviceDiagnostics()
     }
 
     override fun onStop() {
@@ -153,6 +171,51 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    private fun refreshDeviceDiagnostics() {
+        if (isRefreshingDeviceDiagnostics) return
+        isRefreshingDeviceDiagnostics = true
+
+        lifecycleScope.launch {
+            try {
+                deviceDiagnostics = AndroidDeviceDiagnosticsProvider(applicationContext).collect()
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (error: Exception) {
+                AppLog.warn(
+                    LogModule.DEVICE,
+                    "device_diagnostics_refresh_failed",
+                    "exception=" + error.javaClass.simpleName
+                )
+            } finally {
+                isRefreshingDeviceDiagnostics = false
+            }
+        }
+    }
+
+    private fun testTransport(transport: CommandTransportType) {
+        if (isTestingTransport) return
+        isTestingTransport = true
+        lastTransportTestResult = null
+
+        lifecycleScope.launch {
+            try {
+                lastTransportTestResult = TransportDiagnosticsProvider(transportManager)
+                    .testTransport(transport)
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (error: Exception) {
+                AppLog.warn(
+                    LogModule.TRANSPORT,
+                    "transport_test_ui_failed",
+                    "transport=" + transport.name +
+                        "; exception=" + error.javaClass.simpleName
+                )
+            } finally {
+                isTestingTransport = false
+            }
+        }
+    }
+
     private fun shareDiagnosticReport(format: DiagnosticReportFormat) {
         if (isPreparingReport) return
         isPreparingReport = true
@@ -185,6 +248,8 @@ class MainActivity : AppCompatActivity() {
                     "format=" + format.name
                 )
                 AndroidDiagnosticReportSharer.share(this@MainActivity, file, format)
+            } catch (cancelled: CancellationException) {
+                throw cancelled
             } catch (error: Exception) {
                 AppLog.warn(
                     LogModule.REPORT,

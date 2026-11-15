@@ -54,6 +54,7 @@ import com.honghoaibao.bbooster.ui.theme.SlateBorder
 import com.honghoaibao.bbooster.ui.theme.SoftWhite
 import java.io.File
 import java.util.Locale
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -85,13 +86,16 @@ fun DeveloperSettingsScreen(
     val clearSuccessMessage = stringResource(R.string.devsettings_clear_success)
     val clearFailureMessage = stringResource(R.string.devsettings_clear_failed)
 
-    LaunchedEffect(revision, settings.retainedDiagnosticReports, refreshCounter) {
-        val stats = withContext(Dispatchers.IO) {
-            writer.pruneToRetention()
-            AppLog.logSizeBytes() to writer.countReports()
+    LaunchedEffect(revision, refreshCounter) {
+        logStorageBytes = withContext(Dispatchers.IO) {
+            AppLog.logSizeBytes()
         }
-        logStorageBytes = stats.first
-        reportCount = stats.second
+    }
+
+    LaunchedEffect(settings.retainedDiagnosticReports, refreshCounter) {
+        reportCount = withContext(Dispatchers.IO) {
+            writer.pruneToRetention()
+        }
     }
 
     Column(
@@ -289,14 +293,19 @@ fun DeveloperSettingsScreen(
                         clearStatus = null
                         isClearing = true
                         coroutineScope.launch {
-                            val cleared = runCatching {
+                            val cleared = try {
                                 withContext(Dispatchers.IO) {
                                     val logsCleared = AppLog.clearLogsAndWait()
                                     val reportsCleared = writer.clearAllReports()
                                     logsCleared && reportsCleared
                                 }
-                            }.getOrDefault(false)
-                            isClearing = false
+                            } catch (cancelled: CancellationException) {
+                                throw cancelled
+                            } catch (_: Exception) {
+                                false
+                            } finally {
+                                isClearing = false
+                            }
                             clearStatus = if (cleared) {
                                 clearSuccessMessage
                             } else {

@@ -92,12 +92,25 @@ class DiagnosticReportWriter(
 
     suspend fun clearAllReports(): Boolean = withContext(Dispatchers.IO) {
         val files = directory.listFiles()?.filter(::isReportOrTemporaryFile).orEmpty()
-        files.all { !it.exists() || it.delete() }
+        var succeeded = true
+        files.forEach { file ->
+            if (file.exists() && !file.delete()) {
+                succeeded = false
+            }
+        }
+        succeeded
     }
 
     private fun pruneOldReports() {
+        directory.listFiles()
+            ?.filter(::isTemporaryReportFile)
+            ?.forEach { it.delete() }
+
         listReportFiles()
-            .sortedByDescending(File::lastModified)
+            .sortedWith(
+                compareByDescending<File> { it.lastModified() }
+                    .thenByDescending { it.name }
+            )
             .drop(maxRetainedReports)
             .forEach { it.delete() }
     }
@@ -108,11 +121,17 @@ class DiagnosticReportWriter(
             .orEmpty()
 
     private fun isReportFile(file: File): Boolean =
-        file.name.startsWith(FILE_PREFIX) &&
+        file.isFile &&
+            file.name.startsWith(FILE_PREFIX) &&
             (file.name.endsWith(".txt") || file.name.endsWith(".json"))
 
+    private fun isTemporaryReportFile(file: File): Boolean =
+        file.isFile &&
+            file.name.startsWith(FILE_PREFIX) &&
+            file.name.endsWith(TEMP_SUFFIX)
+
     private fun isReportOrTemporaryFile(file: File): Boolean =
-        isReportFile(file) || file.name.startsWith(FILE_PREFIX) && file.name.endsWith(TEMP_SUFFIX)
+        isReportFile(file) || isTemporaryReportFile(file)
 
     companion object {
         const val DEFAULT_RETAINED_REPORTS = 4

@@ -54,11 +54,45 @@ class DiagnosticReportWriterTest {
         unrelated.writeText("unrelated")
         val temporary = directory.resolve("bbooster-diagnostic-interrupted.json.tmp")
         temporary.writeText("partial")
+        val unrelatedDirectory = directory.resolve("bbooster-diagnostic-folder.json")
+        assertTrue(unrelatedDirectory.mkdir())
 
         assertTrue(writer.clearAllReports())
         assertEquals(0, writer.countReports())
         assertTrue(unrelated.isFile)
+        assertTrue(unrelatedDirectory.isDirectory)
         assertFalse(temporary.exists())
+    }
+
+    @Test
+    fun pruneRemovesInterruptedTemporaryFiles() = runBlocking {
+        val directory = Files.createTempDirectory("bbooster-report-temp").toFile()
+        val writer = DiagnosticReportWriter(directory)
+        val interrupted = directory.resolve("bbooster-diagnostic-interrupted.json.tmp")
+        interrupted.writeText("partial report")
+
+        assertEquals(0, writer.pruneToRetention())
+        assertFalse(interrupted.exists())
+    }
+
+    @Test
+    fun retentionKeepsNewestReportsWhenTimestampsCollide() = runBlocking {
+        val directory = Files.createTempDirectory("bbooster-report-collision").toFile()
+        val writer = DiagnosticReportWriter(directory, maxRetainedReports = 2)
+
+        repeat(5) {
+            writer.write(emptyReport(), DiagnosticReportFormat.TEXT)
+        }
+
+        val retained = directory.listFiles()
+            ?.filter { it.isFile && it.name.endsWith(".txt") }
+            .orEmpty()
+            .map { it.name }
+            .sorted()
+
+        assertEquals(2, retained.size)
+        assertTrue(retained.any { it.endsWith("-3.txt") })
+        assertTrue(retained.any { it.endsWith("-4.txt") })
     }
 
     private fun emptyReport() = DiagnosticReport(

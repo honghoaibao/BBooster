@@ -32,7 +32,11 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.honghoaibao.bbooster.R
+import com.honghoaibao.bbooster.core.diagnostics.device.BatteryStatus
+import com.honghoaibao.bbooster.core.diagnostics.device.DeviceDiagnostics
 import com.honghoaibao.bbooster.core.diagnostics.report.DiagnosticReportFormat
+import com.honghoaibao.bbooster.core.diagnostics.transport.TransportTestOutcome
+import com.honghoaibao.bbooster.core.diagnostics.transport.TransportTestResult
 import com.honghoaibao.bbooster.core.command.CommandExecutionStatus
 import com.honghoaibao.bbooster.core.command.CommandResult
 import com.honghoaibao.bbooster.core.command.CommandTransportType
@@ -63,6 +67,13 @@ fun DashboardScreen(
     onOpenLogViewer: () -> Unit,
     onShareDiagnosticReport: (DiagnosticReportFormat) -> Unit,
     onOpenDeveloperSettings: () -> Unit,
+    deviceDiagnostics: DeviceDiagnostics?,
+    isRefreshingDeviceDiagnostics: Boolean,
+    onRefreshDeviceDiagnostics: () -> Unit,
+    lastTransportTestResult: TransportTestResult?,
+    isTestingTransport: Boolean,
+    canTestTransport: Boolean,
+    onTestTransport: (CommandTransportType) -> Unit,
     isPreparingReport: Boolean
 ) {
     Column(
@@ -108,6 +119,10 @@ fun DashboardScreen(
             onOpenLogViewer = onOpenLogViewer,
             onShareReport = onShareDiagnosticReport,
             onOpenSettings = onOpenDeveloperSettings,
+            lastTransportTestResult = lastTransportTestResult,
+            isTestingTransport = isTestingTransport,
+            canTestTransport = canTestTransport,
+            onTestTransport = onTestTransport,
             isPreparingReport = isPreparingReport
         )
 
@@ -116,34 +131,11 @@ fun DashboardScreen(
                 title = stringResource(R.string.section_device_overview),
                 trailing = stringResource(R.string.phase_three)
             )
-            Card(
-                colors = CardDefaults.cardColors(containerColor = DarkSlate),
-                border = BorderStroke(1.dp, SlateBorder),
-                shape = RoundedCornerShape(22.dp),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Column(
-                    modifier = Modifier.padding(18.dp),
-                    verticalArrangement = Arrangement.spacedBy(14.dp)
-                ) {
-                    Text(
-                        stringResource(R.string.telemetry_title),
-                        color = SoftWhite,
-                        fontWeight = FontWeight.SemiBold,
-                        fontSize = 16.sp
-                    )
-                    Text(
-                        stringResource(R.string.telemetry_description),
-                        color = MutedText,
-                        fontSize = 13.sp,
-                        lineHeight = 19.sp
-                    )
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        StatusTag(stringResource(R.string.ram_pending))
-                        StatusTag(stringResource(R.string.battery_pending))
-                    }
-                }
-            }
+            DeviceOverviewCard(
+                diagnostics = deviceDiagnostics,
+                isRefreshing = isRefreshingDeviceDiagnostics,
+                onRefresh = onRefreshDeviceDiagnostics
+            )
         }
 
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -187,6 +179,10 @@ private fun DeveloperToolsCard(
     onOpenLogViewer: () -> Unit,
     onShareReport: (DiagnosticReportFormat) -> Unit,
     onOpenSettings: () -> Unit,
+    lastTransportTestResult: TransportTestResult?,
+    isTestingTransport: Boolean,
+    canTestTransport: Boolean,
+    onTestTransport: (CommandTransportType) -> Unit,
     isPreparingReport: Boolean
 ) {
     Card(
@@ -266,6 +262,87 @@ private fun DeveloperToolsCard(
                     Text(stringResource(R.string.report_export_json), fontWeight = FontWeight.Bold)
                 }
             }
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(
+                    stringResource(R.string.transport_test_title),
+                    color = SoftWhite,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Text(
+                    stringResource(R.string.transport_test_description),
+                    color = MutedText,
+                    fontSize = 11.sp,
+                    lineHeight = 16.sp
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    Button(
+                        onClick = { onTestTransport(CommandTransportType.USER_SERVICE) },
+                        enabled = canTestTransport && !isTestingTransport,
+                        modifier = Modifier.weight(1f),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = ElectricCyan,
+                            contentColor = Obsidian,
+                            disabledContainerColor = SlateBorder,
+                            disabledContentColor = MutedText
+                        )
+                    ) {
+                        Text(
+                            stringResource(R.string.transport_test_user_service),
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 11.sp
+                        )
+                    }
+                    Button(
+                        onClick = { onTestTransport(CommandTransportType.DIRECT_PROCESS) },
+                        enabled = canTestTransport && !isTestingTransport,
+                        modifier = Modifier.weight(1f),
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = Color(0xFF263747),
+                            contentColor = SoftWhite,
+                            disabledContainerColor = SlateBorder,
+                            disabledContentColor = MutedText
+                        )
+                    ) {
+                        Text(
+                            stringResource(R.string.transport_test_direct_process),
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 11.sp
+                        )
+                    }
+                }
+                if (!canTestTransport && !isTestingTransport) {
+                    Text(
+                        stringResource(R.string.transport_test_requires_ready),
+                        color = MutedText,
+                        fontSize = 10.sp,
+                        lineHeight = 14.sp
+                    )
+                }
+                if (isTestingTransport) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.width(15.dp).height(15.dp),
+                            strokeWidth = 2.dp,
+                            color = ElectricCyan
+                        )
+                        Text(
+                            stringResource(R.string.transport_test_running),
+                            color = MutedText,
+                            fontSize = 11.sp
+                        )
+                    }
+                }
+                lastTransportTestResult?.let { result ->
+                    TransportTestResultCard(result)
+                }
+            }
             TextButton(
                 onClick = onOpenSettings,
                 enabled = !isPreparingReport,
@@ -296,6 +373,336 @@ private fun DeveloperToolsCard(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun DeviceOverviewCard(
+    diagnostics: DeviceDiagnostics?,
+    isRefreshing: Boolean,
+    onRefresh: () -> Unit
+) {
+    Card(
+        colors = CardDefaults.cardColors(containerColor = DarkSlate),
+        border = BorderStroke(1.dp, SlateBorder),
+        shape = RoundedCornerShape(22.dp),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(
+            modifier = Modifier.padding(18.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(3.dp)
+                ) {
+                    Text(
+                        stringResource(R.string.device_telemetry_title),
+                        color = SoftWhite,
+                        fontWeight = FontWeight.SemiBold,
+                        fontSize = 16.sp
+                    )
+                    Text(
+                        diagnostics?.let {
+                            "${it.device.manufacturer} ${it.device.model}".trim()
+                        }?.takeIf(String::isNotBlank)
+                            ?: stringResource(R.string.device_value_unavailable),
+                        color = MutedText,
+                        fontSize = 11.sp
+                    )
+                }
+                TextButton(
+                    onClick = onRefresh,
+                    enabled = !isRefreshing
+                ) {
+                    if (isRefreshing) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.width(15.dp).height(15.dp),
+                            strokeWidth = 2.dp,
+                            color = ElectricCyan
+                        )
+                    } else {
+                        Text(
+                            stringResource(R.string.device_refresh),
+                            color = ElectricCyan,
+                            fontSize = 11.sp
+                        )
+                    }
+                }
+            }
+
+            if (diagnostics == null) {
+                Text(
+                    stringResource(
+                        if (isRefreshing) R.string.device_refreshing
+                        else R.string.device_unavailable
+                    ),
+                    color = MutedText,
+                    fontSize = 12.sp
+                )
+            } else {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    DeviceMetric(
+                        modifier = Modifier.weight(1f),
+                        label = stringResource(R.string.device_ram),
+                        value = diagnostics.memory?.let {
+                            stringResource(
+                                R.string.device_available_of_total,
+                                formatBytes(it.availableBytes),
+                                formatBytes(it.totalBytes)
+                            )
+                        } ?: stringResource(R.string.device_value_unavailable)
+                    )
+                    DeviceMetric(
+                        modifier = Modifier.weight(1f),
+                        label = stringResource(R.string.device_storage),
+                        value = diagnostics.storage?.let {
+                            stringResource(
+                                R.string.device_available_of_total,
+                                formatBytes(it.availableBytes),
+                                formatBytes(it.totalBytes)
+                            )
+                        } ?: stringResource(R.string.device_value_unavailable)
+                    )
+                }
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    DeviceMetric(
+                        modifier = Modifier.weight(1f),
+                        label = stringResource(R.string.device_battery),
+                        value = diagnostics.battery?.let { battery ->
+                            val level = battery.levelPercent?.let { "$it%" }
+                                ?: stringResource(R.string.device_value_unavailable)
+                            stringResource(
+                                R.string.device_battery_value,
+                                level,
+                                battery.status.localizedLabel()
+                            )
+                        } ?: stringResource(R.string.device_value_unavailable)
+                    )
+                    DeviceMetric(
+                        modifier = Modifier.weight(1f),
+                        label = stringResource(R.string.device_android),
+                        value = stringResource(
+                            R.string.device_android_value,
+                            diagnostics.android.release,
+                            diagnostics.android.sdkLevel
+                        )
+                    )
+                }
+
+                diagnostics.memory?.takeIf { it.isLowMemory }?.let {
+                    Text(
+                        stringResource(R.string.device_low_memory_warning),
+                        color = Amber,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+
+                val cpuAbiText = diagnostics.device.cpuAbis.joinToString()
+                val cpuAbiValue = if (cpuAbiText.isBlank()) {
+                    stringResource(R.string.device_value_unavailable)
+                } else {
+                    cpuAbiText
+                }
+                Text(
+                    stringResource(
+                        R.string.device_cpu_abi,
+                        cpuAbiValue
+                    ),
+                    color = MutedText,
+                    fontSize = 10.sp,
+                    lineHeight = 14.sp
+                )
+                Text(
+                    stringResource(
+                        R.string.device_uptime,
+                        formatUptime(diagnostics.uptimeMillis)
+                    ),
+                    color = MutedText,
+                    fontSize = 10.sp
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun TransportTestResultCard(result: TransportTestResult) {
+    val statusColor = if (result.outcome == TransportTestOutcome.PASSED) {
+        Emerald
+    } else {
+        Amber
+    }
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(Color(0xFF101722), RoundedCornerShape(12.dp))
+            .padding(12.dp),
+        verticalArrangement = Arrangement.spacedBy(5.dp)
+    ) {
+        Text(
+            stringResource(
+                R.string.transport_test_result,
+                result.transport.localizedLabel(),
+                result.outcome.localizedLabel()
+            ),
+            color = statusColor,
+            fontSize = 12.sp,
+            fontWeight = FontWeight.SemiBold
+        )
+        Text(
+            stringResource(
+                R.string.transport_test_connection_state,
+                result.connectionAvailability.localizedLabel()
+            ),
+            color = MutedText,
+            fontSize = 10.sp
+        )
+        Text(
+            stringResource(
+                R.string.transport_test_connection_latency,
+                result.connectionResponseTimeMillis
+            ),
+            color = MutedText,
+            fontSize = 10.sp
+        )
+        result.commandResponseTimeMillis?.let { duration ->
+            Text(
+                stringResource(R.string.transport_test_command_latency, duration),
+                color = MutedText,
+                fontSize = 10.sp
+            )
+        }
+        Text(
+            stringResource(
+                R.string.transport_test_total_latency,
+                result.totalResponseTimeMillis
+            ),
+            color = MutedText,
+            fontSize = 10.sp
+        )
+        result.failureCode?.let { failureCode ->
+            Text(
+                stringResource(R.string.transport_test_failure_code, failureCode.name),
+                color = Amber,
+                fontSize = 10.sp
+            )
+        }
+        result.command?.let { command ->
+            Text(
+                stringResource(
+                    R.string.transport_test_command_summary,
+                    command.status.name,
+                    command.dispatchState.name,
+                    command.exitCode?.toString() ?: "n/a"
+                ),
+                color = MutedText,
+                fontSize = 10.sp,
+                lineHeight = 14.sp
+            )
+        }
+    }
+}
+
+@Composable
+private fun CommandTransportType.localizedLabel(): String = when (this) {
+    CommandTransportType.USER_SERVICE -> stringResource(R.string.transport_user_service)
+    CommandTransportType.DIRECT_PROCESS -> stringResource(R.string.transport_direct_process)
+}
+
+@Composable
+private fun TransportAvailability.localizedLabel(): String = when (this) {
+    TransportAvailability.CHECKING -> stringResource(R.string.transport_checking)
+    TransportAvailability.READY,
+    TransportAvailability.AVAILABLE -> stringResource(R.string.transport_ready)
+    TransportAvailability.STARTING -> stringResource(R.string.transport_starting)
+    TransportAvailability.DEGRADED -> stringResource(R.string.transport_degraded)
+    TransportAvailability.UNAVAILABLE -> stringResource(R.string.transport_unavailable)
+    TransportAvailability.UNSUPPORTED -> stringResource(R.string.transport_unsupported)
+}
+
+@Composable
+private fun TransportTestOutcome.localizedLabel(): String = when (this) {
+    TransportTestOutcome.PASSED -> stringResource(R.string.transport_test_passed)
+    TransportTestOutcome.CONNECTION_FAILED -> stringResource(R.string.transport_test_connection_failed)
+    TransportTestOutcome.UNSUPPORTED -> stringResource(R.string.transport_test_unsupported)
+    TransportTestOutcome.COMMAND_REJECTED -> stringResource(R.string.transport_test_command_rejected)
+    TransportTestOutcome.NOT_DISPATCHED -> stringResource(R.string.transport_test_not_dispatched)
+    TransportTestOutcome.DISPATCH_UNKNOWN -> stringResource(R.string.transport_test_dispatch_unknown)
+    TransportTestOutcome.DISPATCHED_TIMEOUT -> stringResource(R.string.transport_test_dispatched_timeout)
+    TransportTestOutcome.COMMAND_FAILED -> stringResource(R.string.transport_test_command_failed)
+}
+
+@Composable
+private fun DeviceMetric(
+    modifier: Modifier,
+    label: String,
+    value: String
+) {
+    Surface(
+        modifier = modifier,
+        color = Color(0xFF101722),
+        shape = RoundedCornerShape(12.dp),
+        border = BorderStroke(1.dp, SlateBorder)
+    ) {
+        Column(
+            modifier = Modifier.padding(11.dp),
+            verticalArrangement = Arrangement.spacedBy(5.dp)
+        ) {
+            Text(
+                label,
+                color = MutedText,
+                fontSize = 10.sp,
+                fontWeight = FontWeight.Medium
+            )
+            Text(
+                value,
+                color = SoftWhite,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.SemiBold,
+                lineHeight = 16.sp
+            )
+        }
+    }
+}
+
+@Composable
+private fun BatteryStatus.localizedLabel(): String = when (this) {
+    BatteryStatus.CHARGING -> stringResource(R.string.device_battery_charging)
+    BatteryStatus.DISCHARGING -> stringResource(R.string.device_battery_discharging)
+    BatteryStatus.FULL -> stringResource(R.string.device_battery_full)
+    BatteryStatus.NOT_CHARGING -> stringResource(R.string.device_battery_not_charging)
+    BatteryStatus.UNKNOWN -> stringResource(R.string.device_battery_unknown)
+}
+
+private fun formatBytes(bytes: Long): String = when {
+    bytes < 1024L -> "${bytes.coerceAtLeast(0L)} B"
+    bytes < 1024L * 1024L -> String.format(java.util.Locale.getDefault(), "%.1f KB", bytes / 1024.0)
+    else -> String.format(java.util.Locale.getDefault(), "%.2f MB", bytes / (1024.0 * 1024.0))
+}
+
+private fun formatUptime(uptimeMillis: Long): String {
+    val totalMinutes = uptimeMillis.coerceAtLeast(0L) / 60_000L
+    val days = totalMinutes / (24L * 60L)
+    val hours = totalMinutes % (24L * 60L) / 60L
+    val minutes = totalMinutes % 60L
+    return if (days > 0L) {
+        "${days}d ${hours}h ${minutes}m"
+    } else {
+        "${hours}h ${minutes}m"
     }
 }
 
@@ -718,18 +1125,6 @@ private fun SectionHeading(title: String, trailing: String) {
     ) {
         Text(title, color = SoftWhite, fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 1.sp)
         Text(trailing, color = MutedText, fontSize = 9.sp, fontWeight = FontWeight.SemiBold, letterSpacing = 0.7.sp)
-    }
-}
-
-@Composable
-private fun StatusTag(label: String) {
-    Surface(color = Color(0xFF202938), shape = RoundedCornerShape(8.dp)) {
-        Text(
-            label,
-            color = MutedText,
-            fontSize = 10.sp,
-            modifier = Modifier.padding(horizontal = 9.dp, vertical = 7.dp)
-        )
     }
 }
 
