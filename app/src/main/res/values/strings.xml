@@ -127,4 +127,12 @@
     <string name="log_module_device">Device</string>
     <string name="log_module_ui">UI</string>
     <string name="log_module_report">Report</string>
+    <string name="report_section">Diagnostic report</string>
+    <string name="report_description">Collect device, Shizuku, transport and recent log details. Sensitive values are redacted before sharing.</string>
+    <string name="report_export_txt">Share TXT</string>
+    <string name="report_export_json">Share JSON</string>
+    <string name="report_generating">Preparing a private report…</string>
+    <string name="report_share_subject">BBooster diagnostic report</string>
+    <string name="report_share_chooser">Share diagnostic report</string>
+    <string name="report_share_failed">Could not prepare or share the diagnostic report.</string>
 </resources>

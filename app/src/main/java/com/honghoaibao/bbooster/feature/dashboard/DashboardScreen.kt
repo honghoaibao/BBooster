@@ -32,6 +32,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.honghoaibao.bbooster.R
+import com.honghoaibao.bbooster.core.diagnostics.report.DiagnosticReportFormat
 import com.honghoaibao.bbooster.core.command.CommandExecutionStatus
 import com.honghoaibao.bbooster.core.command.CommandResult
 import com.honghoaibao.bbooster.core.command.CommandTransportType
@@ -59,7 +60,9 @@ fun DashboardScreen(
     onRefreshShizuku: () -> Unit,
     onRunDiagnostics: () -> Unit,
     onLanguageSelected: (String) -> Unit,
-    onOpenLogViewer: () -> Unit
+    onOpenLogViewer: () -> Unit,
+    onShareDiagnosticReport: (DiagnosticReportFormat) -> Unit,
+    isPreparingReport: Boolean
 ) {
     Column(
         modifier = Modifier
@@ -100,7 +103,11 @@ fun DashboardScreen(
 
         LanguageSelectorCard(selectedLanguage, onLanguageSelected)
 
-        DeveloperToolsCard(onOpenLogViewer)
+        DeveloperToolsCard(
+            onOpenLogViewer = onOpenLogViewer,
+            onShareReport = onShareDiagnosticReport,
+            isPreparingReport = isPreparingReport
+        )
 
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             SectionHeading(
@@ -174,7 +181,11 @@ fun DashboardScreen(
 }
 
 @Composable
-private fun DeveloperToolsCard(onOpenLogViewer: () -> Unit) {
+private fun DeveloperToolsCard(
+    onOpenLogViewer: () -> Unit,
+    onShareReport: (DiagnosticReportFormat) -> Unit,
+    isPreparingReport: Boolean
+) {
     Card(
         colors = CardDefaults.cardColors(containerColor = DarkSlate),
         border = BorderStroke(1.dp, SlateBorder),
@@ -183,7 +194,7 @@ private fun DeveloperToolsCard(onOpenLogViewer: () -> Unit) {
     ) {
         Column(
             modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
+            verticalArrangement = Arrangement.spacedBy(9.dp)
         ) {
             Text(
                 stringResource(R.string.devtools_title),
@@ -208,6 +219,67 @@ private fun DeveloperToolsCard(onOpenLogViewer: () -> Unit) {
                 stringResource(R.string.devtools_open_logs),
                 onOpenLogViewer
             )
+
+            Text(
+                stringResource(R.string.report_section),
+                color = SoftWhite,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.SemiBold
+            )
+            Text(
+                stringResource(R.string.report_description),
+                color = MutedText,
+                fontSize = 12.sp,
+                lineHeight = 17.sp
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(9.dp)
+            ) {
+                Button(
+                    onClick = { onShareReport(DiagnosticReportFormat.TEXT) },
+                    enabled = !isPreparingReport,
+                    modifier = Modifier.weight(1f),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = ElectricCyan,
+                        contentColor = Obsidian,
+                        disabledContainerColor = SlateBorder,
+                        disabledContentColor = MutedText
+                    )
+                ) {
+                    Text(stringResource(R.string.report_export_txt), fontWeight = FontWeight.Bold)
+                }
+                Button(
+                    onClick = { onShareReport(DiagnosticReportFormat.JSON) },
+                    enabled = !isPreparingReport,
+                    modifier = Modifier.weight(1f),
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = Color(0xFF263747),
+                        contentColor = SoftWhite,
+                        disabledContainerColor = SlateBorder,
+                        disabledContentColor = MutedText
+                    )
+                ) {
+                    Text(stringResource(R.string.report_export_json), fontWeight = FontWeight.Bold)
+                }
+            }
+            if (isPreparingReport) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(9.dp)
+                ) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.width(16.dp).height(16.dp),
+                        strokeWidth = 2.dp,
+                        color = ElectricCyan
+                    )
+                    Text(
+                        stringResource(R.string.report_generating),
+                        color = MutedText,
+                        fontSize = 11.sp
+                    )
+                }
+            }
         }
     }
 }

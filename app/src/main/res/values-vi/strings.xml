@@ -127,4 +127,12 @@
     <string name="log_module_device">Thiết bị</string>
     <string name="log_module_ui">Giao diện</string>
     <string name="log_module_report">Báo cáo</string>
+    <string name="report_section">Báo cáo chẩn đoán</string>
+    <string name="report_description">Tổng hợp thông tin thiết bị, Shizuku, transport và nhật ký gần đây. Dữ liệu nhạy cảm được che trước khi chia sẻ.</string>
+    <string name="report_export_txt">Chia sẻ TXT</string>
+    <string name="report_export_json">Chia sẻ JSON</string>
+    <string name="report_generating">Đang chuẩn bị báo cáo riêng tư…</string>
+    <string name="report_share_subject">Báo cáo chẩn đoán BBooster</string>
+    <string name="report_share_chooser">Chia sẻ báo cáo chẩn đoán</string>
+    <string name="report_share_failed">Không thể tạo hoặc chia sẻ báo cáo chẩn đoán.</string>
 </resources>

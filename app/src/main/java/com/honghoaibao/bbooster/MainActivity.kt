@@ -3,6 +3,7 @@ package com.honghoaibao.bbooster
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
+import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.appcompat.app.AppCompatActivity
@@ -14,6 +15,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.core.os.LocaleListCompat
 import androidx.lifecycle.lifecycleScope
+import com.honghoaibao.bbooster.core.diagnostics.device.AndroidDeviceDiagnosticsProvider
+import com.honghoaibao.bbooster.core.diagnostics.report.AndroidDiagnosticReportSharer
+import com.honghoaibao.bbooster.core.diagnostics.report.DiagnosticReportCollector
+import com.honghoaibao.bbooster.core.diagnostics.report.DiagnosticReportFormat
+import com.honghoaibao.bbooster.core.diagnostics.report.DiagnosticReportWriter
+import com.honghoaibao.bbooster.core.diagnostics.shizuku.ShizukuDiagnosticsProvider
+import com.honghoaibao.bbooster.core.diagnostics.transport.TransportDiagnosticsProvider
 import com.honghoaibao.bbooster.core.logging.AppLog
 import com.honghoaibao.bbooster.core.logging.LogModule
 import com.honghoaibao.bbooster.core.shizuku.ShizukuConnectionManager
@@ -27,6 +35,8 @@ import kotlinx.coroutines.launch
 import java.io.File
 
 class MainActivity : AppCompatActivity() {
+
+    private var isPreparingReport by mutableStateOf(false)
 
     private val shizukuConnectionManager by lazy { ShizukuConnectionManager() }
     private val transportManager by lazy { ShizukuTransportManager(this) }
@@ -66,7 +76,9 @@ class MainActivity : AppCompatActivity() {
                         onRefreshShizuku = ::refreshConnections,
                         onRunDiagnostics = ::runDiagnostics,
                         onLanguageSelected = ::setLanguage,
-                        onOpenLogViewer = { showLogViewer = true }
+                        onOpenLogViewer = { showLogViewer = true },
+                        onShareDiagnosticReport = ::shareDiagnosticReport,
+                        isPreparingReport = isPreparingReport
                     )
                 }
             }
@@ -116,6 +128,54 @@ class MainActivity : AppCompatActivity() {
     private fun runDiagnostics() {
         lifecycleScope.launch {
             transportManager.execute(DIAGNOSTIC_COMMAND_ID)
+        }
+    }
+
+    private fun shareDiagnosticReport(format: DiagnosticReportFormat) {
+        if (isPreparingReport) return
+        isPreparingReport = true
+
+        lifecycleScope.launch {
+            try {
+                AppLog.info(
+                    LogModule.REPORT,
+                    "diagnostic_report_export_started",
+                    "format=" + format.name
+                )
+                val collector = DiagnosticReportCollector(
+                    deviceProvider = AndroidDeviceDiagnosticsProvider(applicationContext),
+                    shizukuProvider = ShizukuDiagnosticsProvider(
+                        shizukuConnectionManager,
+                        transportManager
+                    ),
+                    transportProvider = TransportDiagnosticsProvider(transportManager),
+                    appVersion = BuildConfig.VERSION_NAME
+                )
+                val report = collector.collect()
+                val file = DiagnosticReportWriter(
+                    File(cacheDir, "diagnostic_reports")
+                ).write(report, format)
+
+                AppLog.info(
+                    LogModule.REPORT,
+                    "diagnostic_report_file_ready",
+                    "format=" + format.name
+                )
+                AndroidDiagnosticReportSharer.share(this@MainActivity, file, format)
+            } catch (error: Exception) {
+                AppLog.warn(
+                    LogModule.REPORT,
+                    "diagnostic_report_export_failed",
+                    "exception=" + error.javaClass.simpleName
+                )
+                Toast.makeText(
+                    this@MainActivity,
+                    R.string.report_share_failed,
+                    Toast.LENGTH_LONG
+                ).show()
+            } finally {
+                isPreparingReport = false
+            }
         }
     }
 
