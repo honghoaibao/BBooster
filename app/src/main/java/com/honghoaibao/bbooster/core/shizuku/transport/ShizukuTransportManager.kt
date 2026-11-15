@@ -177,7 +177,8 @@ class ShizukuTransportManager internal constructor(
             if (shouldProbeUserService) {
                 retryUserServiceAtMs = if (
                     userStatus.state == TransportAvailability.DEGRADED ||
-                    userStatus.state == TransportAvailability.UNAVAILABLE
+                    userStatus.state == TransportAvailability.UNAVAILABLE ||
+                    userStatus.state == TransportAvailability.UNSUPPORTED
                 ) {
                     clockMs() + userServiceRetryDelayMs
                 } else {
@@ -288,7 +289,8 @@ class ShizukuTransportManager internal constructor(
             ) {
                 if (
                     userServiceTransport.status.value.state == TransportAvailability.DEGRADED ||
-                    userServiceTransport.status.value.state == TransportAvailability.UNAVAILABLE
+                    userServiceTransport.status.value.state == TransportAvailability.UNAVAILABLE ||
+                    userServiceTransport.status.value.state == TransportAvailability.UNSUPPORTED
                 ) {
                     retryUserServiceAtMs = clockMs() + userServiceRetryDelayMs
                     mutableState.value = mutableState.value.copy(
@@ -437,7 +439,8 @@ class ShizukuTransportManager internal constructor(
                     }
 
                     TransportAvailability.DEGRADED,
-                    TransportAvailability.UNAVAILABLE -> {
+                    TransportAvailability.UNAVAILABLE,
+                    TransportAvailability.UNSUPPORTED -> {
                         retryUserServiceAtMs = clockMs() + userServiceRetryDelayMs
                         mutableState.value = mutableState.value.copy(
                             userService = status,
