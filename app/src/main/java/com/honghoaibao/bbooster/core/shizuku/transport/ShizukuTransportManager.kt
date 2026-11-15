@@ -193,6 +193,7 @@ class ShizukuTransportManager internal constructor(
                 }
             }
 
+            val checkedAt = wallClockMillis().coerceAtLeast(0L)
             mutableState.value = mutableState.value.copy(
                 userService = visibleUserServiceStatus(userStatus),
                 directProcess = directStatus,
@@ -205,7 +206,13 @@ class ShizukuTransportManager internal constructor(
                     }
                 } else {
                     mutableState.value.lastFallbackReason
-                }
+                },
+                lastUserServiceCheckAtMillis = if (shouldProbeUserService) {
+                    checkedAt
+                } else {
+                    mutableState.value.lastUserServiceCheckAtMillis
+                },
+                lastDirectProcessCheckAtMillis = checkedAt
             )
         } finally {
             mutableState.update {
@@ -221,6 +228,187 @@ class ShizukuTransportManager internal constructor(
         }
         mutableState.value
     }
+
+    /**
+     * Explicitly refreshes one selected transport without invoking fallback or
+     * changing the automatic UserService cooldown policy.
+     */
+    suspend fun refreshTransport(
+        transportType: CommandTransportType
+    ): TransportStatus = executionMutex.withLock {
+        val transport = transportFor(transportType)
+        if (isClosed) return@withLock transport.status.value
+
+        val refreshed = refreshSafely(transport)
+        val checkedAt = wallClockMillis().coerceAtLeast(0L)
+
+        if (transportType == CommandTransportType.USER_SERVICE) {
+            when (refreshed.state) {
+                TransportAvailability.READY -> {
+                    retryUserServiceAtMs = 0L
+                    userServiceRecoveryJob?.cancel()
+                    userServiceRecoveryJob = null
+                }
+
+                TransportAvailability.DEGRADED,
+                TransportAvailability.UNAVAILABLE,
+                TransportAvailability.UNSUPPORTED -> {
+                    retryUserServiceAtMs = clockMs() + userServiceRetryDelayMs
+                }
+
+                else -> Unit
+            }
+        }
+
+        mutableState.update { current ->
+            val updated = when (transportType) {
+                CommandTransportType.USER_SERVICE -> current.copy(
+                    userService = refreshed,
+                    userServiceRetryAtMs = retryUserServiceAtMs.takeIf { it > clockMs() },
+                    lastFallbackReason = when {
+                        refreshed.state == TransportAvailability.READY -> null
+                        refreshed.state in setOf(
+                            TransportAvailability.DEGRADED,
+                            TransportAvailability.UNAVAILABLE,
+                            TransportAvailability.UNSUPPORTED
+                        ) -> refreshed.detail
+                        else -> current.lastFallbackReason
+                    }
+                )
+                CommandTransportType.DIRECT_PROCESS -> current.copy(directProcess = refreshed)
+            }
+            updated.copy(
+                lastCheckedAtMillis = checkedAt,
+                lastUserServiceCheckAtMillis = if (
+                    transportType == CommandTransportType.USER_SERVICE
+                ) checkedAt else updated.lastUserServiceCheckAtMillis,
+                lastDirectProcessCheckAtMillis = if (
+                    transportType == CommandTransportType.DIRECT_PROCESS
+                ) checkedAt else updated.lastDirectProcessCheckAtMillis
+            )
+        }
+
+        if (transportType == CommandTransportType.USER_SERVICE &&
+            retryUserServiceAtMs > clockMs()
+        ) {
+            scheduleUserServiceRecovery()
+        }
+        refreshed
+    }
+
+    /**
+     * Runs exactly one fixed, read-only diagnostic command on exactly one
+     * selected transport. This method never falls back or retries.
+     */
+    suspend fun executeDiagnosticCommand(
+        transportType: CommandTransportType
+    ): CommandResult = executionMutex.withLock {
+        val diagnosticCommandId = DIAGNOSTIC_COMMAND_ID
+        if (isClosed) {
+            return@withLock rejectedResult(
+                diagnosticCommandId,
+                CommandFailureCode.TRANSPORT_UNAVAILABLE,
+                "Shizuku transport manager is closed."
+            )
+        }
+
+        val definition = CommandRegistry.find(diagnosticCommandId)
+            ?: return@withLock rejectedResult(
+                diagnosticCommandId,
+                CommandFailureCode.COMMAND_REJECTED,
+                "The diagnostic command is not registered."
+            )
+
+        if (
+            definition.accessType != com.honghoaibao.bbooster.core.command.CommandAccessType.READ_ONLY ||
+            definition.executionMode != com.honghoaibao.bbooster.core.command.CommandExecutionMode.ONE_SHOT ||
+            definition.requiresConfirmation ||
+            transportType !in definition.supportedTransports
+        ) {
+            return@withLock rejectedResult(
+                diagnosticCommandId,
+                CommandFailureCode.TRANSPORT_UNSUPPORTED,
+                "The registered diagnostic command is not supported by the selected transport."
+            )
+        }
+
+        val authorization = try {
+            CommandPolicy.authorize(diagnosticCommandId, authorizationContextProvider())
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (error: Exception) {
+            return@withLock rejectedResult(
+                diagnosticCommandId,
+                CommandFailureCode.INTERNAL_ERROR,
+                "Authorization check failed: " + error.javaClass.simpleName + "."
+            )
+        }
+
+        if (authorization !is CommandAuthorization.Allowed) {
+            val rejection = (authorization as CommandAuthorization.Denied).reason
+            return@withLock rejectedResult(
+                diagnosticCommandId,
+                rejection.toFailureCode(),
+                rejection.toDetail()
+            )
+        }
+
+        val transport = transportFor(transportType)
+        mutableState.update { it.copy(isExecuting = true) }
+        try {
+            val result = executeSafely(transport, diagnosticCommandId)
+
+            if (transportType == CommandTransportType.USER_SERVICE) {
+                val userStatus = userServiceTransport.status.value
+                when {
+                    result.isSuccess -> {
+                        retryUserServiceAtMs = 0L
+                        userServiceRecoveryJob?.cancel()
+                        userServiceRecoveryJob = null
+                        mutableState.update {
+                            it.copy(
+                                userServiceRetryAtMs = null,
+                                lastFallbackReason = null
+                            )
+                        }
+                    }
+
+                    userStatus.state in setOf(
+                        TransportAvailability.DEGRADED,
+                        TransportAvailability.UNAVAILABLE,
+                        TransportAvailability.UNSUPPORTED
+                    ) -> {
+                        retryUserServiceAtMs = clockMs() + userServiceRetryDelayMs
+                        mutableState.update {
+                            it.copy(
+                                userServiceRetryAtMs = retryUserServiceAtMs,
+                                lastFallbackReason = result.failureDetail
+                                    ?: userStatus.detail
+                                    ?: "UserService diagnostic test did not complete."
+                            )
+                        }
+                        scheduleUserServiceRecovery()
+                    }
+                }
+            }
+
+            finish(result)
+        } finally {
+            mutableState.update {
+                it.copy(
+                    isExecuting = false,
+                    userService = effectiveUserServiceStatus(),
+                    directProcess = directProcessTransport.status.value
+                )
+            }
+        }
+    }
+
+    private fun transportFor(type: CommandTransportType): ShizukuTransport =
+        when (type) {
+            CommandTransportType.USER_SERVICE -> userServiceTransport
+            CommandTransportType.DIRECT_PROCESS -> directProcessTransport
+        }
 
     /** Runs a command by registry ID; caller-supplied shell text is never accepted. */
     suspend fun execute(actionId: String): CommandResult = executionMutex.withLock {
@@ -599,6 +787,7 @@ class ShizukuTransportManager internal constructor(
     }
 
     private companion object {
+        const val DIAGNOSTIC_COMMAND_ID = "caller_identity"
         const val DEFAULT_USER_SERVICE_RETRY_DELAY_MS = 30_000L
         const val NANOS_PER_MILLISECOND = 1_000_000L
     }
@@ -620,5 +809,7 @@ data class TransportManagerState(
     val userServiceRetryAtMs: Long? = null,
     val lastFallbackReason: String? = null,
     val lastCheckedAtMillis: Long? = null,
-    val lastCommandAtMillis: Long? = null
+    val lastCommandAtMillis: Long? = null,
+    val lastUserServiceCheckAtMillis: Long? = null,
+    val lastDirectProcessCheckAtMillis: Long? = null
 )

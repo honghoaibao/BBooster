@@ -454,6 +454,103 @@ class ShizukuTransportManagerTest {
         manager.close()
     }
 
+    @Test
+    fun diagnosticUserServiceFailureSetsExistingCooldownForNormalCommands() = runBlocking {
+        var now = 1_000L
+        val user = FakeTransport(CommandTransportType.USER_SERVICE) { command ->
+            success(command, CommandTransportType.USER_SERVICE)
+        }
+        user.setAvailability(TransportAvailability.DEGRADED)
+        val direct = FakeTransport(CommandTransportType.DIRECT_PROCESS) { command ->
+            success(command, CommandTransportType.DIRECT_PROCESS)
+        }
+        val manager = ShizukuTransportManager(
+            userServiceTransport = user,
+            directProcessTransport = direct,
+            authorizationContextProvider = { grantedContext() },
+            clockMs = { now },
+            userServiceRetryDelayMs = 5_000L,
+            wallClockMillis = { now }
+        )
+
+        val diagnosticStatus = manager.refreshTransport(CommandTransportType.USER_SERVICE)
+        assertEquals(TransportAvailability.DEGRADED, diagnosticStatus.state)
+        assertEquals(6_000L, manager.state.value.userServiceRetryAtMs)
+
+        now = 2_000L
+        val normalResult = manager.execute("caller_identity")
+
+        assertEquals(CommandTransportType.DIRECT_PROCESS, normalResult.transport)
+        assertEquals(0, user.executeCount)
+        assertEquals(1, direct.executeCount)
+        manager.close()
+    }
+
+    @Test
+    fun diagnosticCommandRunsOnlyTheExplicitlySelectedTransport() = runBlocking {
+        val user = FakeTransport(CommandTransportType.USER_SERVICE) { command ->
+            success(command, CommandTransportType.USER_SERVICE)
+        }
+        val direct = FakeTransport(CommandTransportType.DIRECT_PROCESS) { command ->
+            success(command, CommandTransportType.DIRECT_PROCESS)
+        }
+        val manager = manager(user, direct)
+
+        val result = manager.executeDiagnosticCommand(CommandTransportType.DIRECT_PROCESS)
+
+        assertTrue(result.isSuccess)
+        assertEquals(CommandTransportType.DIRECT_PROCESS, result.transport)
+        assertEquals(0, user.executeCount)
+        assertEquals(1, direct.executeCount)
+        assertEquals(CommandTransportType.DIRECT_PROCESS, manager.state.value.activeTransport)
+        manager.close()
+    }
+
+    @Test
+    fun diagnosticCommandNeverFallsBackAfterUnknownDispatch() = runBlocking {
+        val user = FakeTransport(CommandTransportType.USER_SERVICE) { command ->
+            CommandResult(
+                commandId = command.id,
+                transport = CommandTransportType.USER_SERVICE,
+                status = CommandExecutionStatus.UNKNOWN,
+                dispatchState = CommandDispatchState.UNKNOWN,
+                failureCode = CommandFailureCode.REMOTE_CALL_FAILED
+            )
+        }
+        val direct = FakeTransport(CommandTransportType.DIRECT_PROCESS) { command ->
+            success(command, CommandTransportType.DIRECT_PROCESS)
+        }
+        val manager = manager(user, direct)
+
+        val result = manager.executeDiagnosticCommand(CommandTransportType.USER_SERVICE)
+
+        assertEquals(CommandExecutionStatus.UNKNOWN, result.status)
+        assertEquals(CommandDispatchState.UNKNOWN, result.dispatchState)
+        assertEquals(1, user.executeCount)
+        assertEquals(0, direct.executeCount)
+        manager.close()
+    }
+
+    @Test
+    fun diagnosticRefreshTouchesOnlySelectedTransport() = runBlocking {
+        val user = FakeTransport(CommandTransportType.USER_SERVICE) { command ->
+            success(command, CommandTransportType.USER_SERVICE)
+        }
+        val direct = FakeTransport(CommandTransportType.DIRECT_PROCESS) { command ->
+            success(command, CommandTransportType.DIRECT_PROCESS)
+        }
+        val manager = manager(user, direct)
+
+        val result = manager.refreshTransport(CommandTransportType.DIRECT_PROCESS)
+
+        assertEquals(TransportAvailability.AVAILABLE, result.state)
+        assertEquals(0, user.refreshCount)
+        assertEquals(1, direct.refreshCount)
+        assertNull(manager.state.value.lastUserServiceCheckAtMillis)
+        assertTrue(manager.state.value.lastDirectProcessCheckAtMillis != null)
+        manager.close()
+    }
+
     private fun manager(
         user: FakeTransport,
         direct: FakeTransport
