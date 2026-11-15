@@ -21,6 +21,45 @@ class LogRedactorTest {
     }
 
     @Test
+    fun redactsCamelCaseSensitiveAssignments() {
+        val input = "accessToken=access-secret refreshToken:refresh-secret apiKey=api-secret " +
+            "serialNumber=serial-secret androidId=android-secret accountId=account-secret " +
+            "userId=user-secret deviceId=device-secret sessionId=session-secret"
+        val output = LogRedactor.redact(input)
+
+        listOf(
+            "access-secret",
+            "refresh-secret",
+            "api-secret",
+            "serial-secret",
+            "android-secret",
+            "account-secret",
+            "user-secret",
+            "device-secret",
+            "session-secret"
+        ).forEach { secret ->
+            assertFalse("Secret was not redacted: $secret", output.contains(secret))
+        }
+        assertTrue(output.contains("accessToken=[REDACTED]"))
+        assertTrue(output.contains("refreshToken=[REDACTED]"))
+        assertTrue(output.contains("apiKey=[REDACTED]"))
+        assertTrue(output.contains("serialNumber=[REDACTED]"))
+    }
+
+    @Test
+    fun redactsQuotedJsonKeysAndValues() {
+        val input = """{"clientSecret":"client-secret","authorization":"Bearer json.token.value","userId":"user-123"}"""
+        val output = LogRedactor.redact(input)
+
+        assertFalse(output.contains("client-secret"))
+        assertFalse(output.contains("json.token.value"))
+        assertFalse(output.contains("user-123"))
+        assertTrue(output.contains("clientSecret=[REDACTED]"))
+        assertTrue(output.contains("authorization=[REDACTED]"))
+        assertTrue(output.contains("userId=[REDACTED]"))
+    }
+
+    @Test
     fun removesLineBreaksAndLimitsEventNames() {
         val output = LogRedactor.redact("first line\nsecond line\tthird line")
         val event = LogRedactor.sanitizeEvent("User Service Connected!")
