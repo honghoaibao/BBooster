@@ -39,6 +39,17 @@ import rikka.shizuku.Shizuku
  * is used only when the previous transport explicitly confirms that the command
  * was not dispatched. An UNKNOWN or dispatched result is never replayed.
  */
+private fun createShizukuAuthorizationContext(): CommandPolicyContext {
+    val binderAvailable = runCatching { Shizuku.pingBinder() }.getOrDefault(false)
+    val permissionGranted = runCatching {
+        Shizuku.checkSelfPermission() == PackageManager.PERMISSION_GRANTED
+    }.getOrDefault(false)
+    return CommandPolicyContext(
+        binderAvailable = binderAvailable,
+        shizukuPermissionGranted = permissionGranted
+    )
+}
+
 class ShizukuTransportManager internal constructor(
     private val userServiceTransport: ShizukuTransport,
     private val directProcessTransport: ShizukuTransport,
@@ -50,16 +61,7 @@ class ShizukuTransportManager internal constructor(
     constructor(context: Context) : this(
         userServiceTransport = UserServiceTransport(context.applicationContext),
         directProcessTransport = DirectProcessTransport(),
-        authorizationContextProvider = {
-            val binderAvailable = runCatching { Shizuku.pingBinder() }.getOrDefault(false)
-            val permissionGranted = runCatching {
-                Shizuku.checkSelfPermission() == PackageManager.PERMISSION_GRANTED
-            }.getOrDefault(false)
-            CommandPolicyContext(
-                binderAvailable = binderAvailable,
-                shizukuPermissionGranted = permissionGranted
-            )
-        }
+        authorizationContextProvider = ::createShizukuAuthorizationContext
     )
 
     private val executionMutex = Mutex()
