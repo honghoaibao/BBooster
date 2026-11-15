@@ -81,17 +81,38 @@ class DiagnosticReportWriter(
         return candidate
     }
 
-    private fun pruneOldReports() {
-        directory.listFiles()
-            ?.filter { file ->
-                file.isFile &&
-                    file.name.startsWith(FILE_PREFIX) &&
-                    (file.name.endsWith(".txt") || file.name.endsWith(".json"))
-            }
-            ?.sortedByDescending(File::lastModified)
-            ?.drop(maxRetainedReports)
-            ?.forEach { it.delete() }
+    suspend fun countReports(): Int = withContext(Dispatchers.IO) {
+        listReportFiles().size
     }
+
+    suspend fun pruneToRetention(): Int = withContext(Dispatchers.IO) {
+        pruneOldReports()
+        listReportFiles().size
+    }
+
+    suspend fun clearAllReports(): Boolean = withContext(Dispatchers.IO) {
+        val files = directory.listFiles()?.filter(::isReportOrTemporaryFile).orEmpty()
+        files.all { !it.exists() || it.delete() }
+    }
+
+    private fun pruneOldReports() {
+        listReportFiles()
+            .sortedByDescending(File::lastModified)
+            .drop(maxRetainedReports)
+            .forEach { it.delete() }
+    }
+
+    private fun listReportFiles(): List<File> =
+        directory.listFiles()
+            ?.filter { file -> file.isFile && isReportFile(file) }
+            .orEmpty()
+
+    private fun isReportFile(file: File): Boolean =
+        file.name.startsWith(FILE_PREFIX) &&
+            (file.name.endsWith(".txt") || file.name.endsWith(".json"))
+
+    private fun isReportOrTemporaryFile(file: File): Boolean =
+        isReportFile(file) || file.name.startsWith(FILE_PREFIX) && file.name.endsWith(TEMP_SUFFIX)
 
     companion object {
         const val DEFAULT_RETAINED_REPORTS = 4

@@ -135,4 +135,27 @@
     <string name="report_share_subject">BBooster diagnostic report</string>
     <string name="report_share_chooser">Share diagnostic report</string>
     <string name="report_share_failed">Could not prepare or share the diagnostic report.</string>
+    <string name="devsettings_open">Developer settings</string>
+    <string name="devsettings_title">Developer settings</string>
+    <string name="devsettings_subtitle">Local controls for diagnostics and troubleshooting.</string>
+    <string name="devsettings_logging_title">Logging</string>
+    <string name="devsettings_logging_description">Choose how much diagnostic detail BBooster records locally.</string>
+    <string name="devsettings_verbose_title">Verbose logging</string>
+    <string name="devsettings_verbose_description">Include DEBUG events. This can increase log activity and storage usage.</string>
+    <string name="devsettings_log_storage">Log storage in use</string>
+    <string name="devsettings_log_storage_note">The existing log store remains capped at 1 MiB and rotates automatically.</string>
+    <string name="devsettings_report_title">Diagnostic reports</string>
+    <string name="devsettings_report_description">Choose how many generated reports remain in the app-private cache.</string>
+    <string name="devsettings_retention_label">Keep recent reports</string>
+    <string name="devsettings_reports_saved">Reports currently saved</string>
+    <string name="devsettings_reports_retained">Maximum retained reports: %1$d</string>
+    <string name="devsettings_data_title">Local diagnostic data</string>
+    <string name="devsettings_data_description">Remove saved application logs and generated report files from this device.</string>
+    <string name="devsettings_clear_button">Clear diagnostic data</string>
+    <string name="devsettings_clear_confirm_title">Clear local diagnostic data?</string>
+    <string name="devsettings_clear_confirm_message">This deletes the current log files and all generated reports stored in the app cache. Files already shared with another app are not recalled.</string>
+    <string name="devsettings_clearing">Clearing local data…</string>
+    <string name="devsettings_clear_success">Local diagnostic data cleared.</string>
+    <string name="devsettings_clear_failed">Some diagnostic files could not be deleted.</string>
+    <string name="devsettings_local_note">These settings are stored only on this device. They do not change Shizuku permissions, command policies or transport behavior.</string>
 </resources>

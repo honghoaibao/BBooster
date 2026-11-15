@@ -62,6 +62,7 @@ fun DashboardScreen(
     onLanguageSelected: (String) -> Unit,
     onOpenLogViewer: () -> Unit,
     onShareDiagnosticReport: (DiagnosticReportFormat) -> Unit,
+    onOpenDeveloperSettings: () -> Unit,
     isPreparingReport: Boolean
 ) {
     Column(
@@ -106,6 +107,7 @@ fun DashboardScreen(
         DeveloperToolsCard(
             onOpenLogViewer = onOpenLogViewer,
             onShareReport = onShareDiagnosticReport,
+            onOpenSettings = onOpenDeveloperSettings,
             isPreparingReport = isPreparingReport
         )
 
@@ -184,6 +186,7 @@ fun DashboardScreen(
 private fun DeveloperToolsCard(
     onOpenLogViewer: () -> Unit,
     onShareReport: (DiagnosticReportFormat) -> Unit,
+    onOpenSettings: () -> Unit,
     isPreparingReport: Boolean
 ) {
     Card(
@@ -262,6 +265,18 @@ private fun DeveloperToolsCard(
                 ) {
                     Text(stringResource(R.string.report_export_json), fontWeight = FontWeight.Bold)
                 }
+            }
+            TextButton(
+                onClick = onOpenSettings,
+                enabled = !isPreparingReport,
+                modifier = Modifier.align(Alignment.End)
+            ) {
+                Text(
+                    stringResource(R.string.devsettings_open),
+                    color = ElectricCyan,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.SemiBold
+                )
             }
             if (isPreparingReport) {
                 Row(

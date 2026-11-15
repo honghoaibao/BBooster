@@ -22,11 +22,14 @@ import com.honghoaibao.bbooster.core.diagnostics.report.DiagnosticReportFormat
 import com.honghoaibao.bbooster.core.diagnostics.report.DiagnosticReportWriter
 import com.honghoaibao.bbooster.core.diagnostics.shizuku.ShizukuDiagnosticsProvider
 import com.honghoaibao.bbooster.core.diagnostics.transport.TransportDiagnosticsProvider
+import com.honghoaibao.bbooster.core.settings.DeveloperSettings
+import com.honghoaibao.bbooster.core.settings.DeveloperSettingsStore
 import com.honghoaibao.bbooster.core.logging.AppLog
 import com.honghoaibao.bbooster.core.logging.LogModule
 import com.honghoaibao.bbooster.core.shizuku.ShizukuConnectionManager
 import com.honghoaibao.bbooster.core.shizuku.transport.ShizukuTransportManager
 import com.honghoaibao.bbooster.feature.dashboard.DashboardScreen
+import com.honghoaibao.bbooster.feature.devtools.DeveloperSettingsScreen
 import com.honghoaibao.bbooster.feature.devtools.LogViewerScreen
 import com.honghoaibao.bbooster.ui.theme.BBoosterTheme
 import kotlinx.coroutines.Dispatchers
@@ -37,14 +40,18 @@ import java.io.File
 class MainActivity : AppCompatActivity() {
 
     private var isPreparingReport by mutableStateOf(false)
+    private var developerSettings by mutableStateOf(DeveloperSettings())
 
+    private val developerSettingsStore by lazy { DeveloperSettingsStore(applicationContext) }
     private val shizukuConnectionManager by lazy { ShizukuConnectionManager() }
     private val transportManager by lazy { ShizukuTransportManager(this) }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+        developerSettings = developerSettingsStore.load()
         AppLog.initialize(File(filesDir, "diagnostics/logs"))
+        AppLog.setVerboseLogging(developerSettings.verboseLoggingEnabled)
         AppLog.info(
             LogModule.APP,
             "application_started",
@@ -58,28 +65,43 @@ class MainActivity : AppCompatActivity() {
             val shizukuState by shizukuConnectionManager.state.collectAsState()
             val transportState by transportManager.state.collectAsState()
             var showLogViewer by remember { mutableStateOf(false) }
+            var showDeveloperSettings by remember { mutableStateOf(false) }
 
-            BackHandler(enabled = showLogViewer) {
+            BackHandler(enabled = showLogViewer || showDeveloperSettings) {
                 showLogViewer = false
+                showDeveloperSettings = false
             }
 
             BBoosterTheme {
-                if (showLogViewer) {
-                    LogViewerScreen(onBack = { showLogViewer = false })
-                } else {
-                    DashboardScreen(
-                        shizukuState = shizukuState,
-                        commandState = transportState,
-                        selectedLanguage = currentLanguageTag(),
-                        onRequestShizukuPermission = shizukuConnectionManager::requestPermission,
-                        onOpenShizuku = ::openShizuku,
-                        onRefreshShizuku = ::refreshConnections,
-                        onRunDiagnostics = ::runDiagnostics,
-                        onLanguageSelected = ::setLanguage,
-                        onOpenLogViewer = { showLogViewer = true },
-                        onShareDiagnosticReport = ::shareDiagnosticReport,
-                        isPreparingReport = isPreparingReport
-                    )
+                when {
+                    showLogViewer -> {
+                        LogViewerScreen(onBack = { showLogViewer = false })
+                    }
+                    showDeveloperSettings -> {
+                        DeveloperSettingsScreen(
+                            settings = developerSettings,
+                            reportCacheDirectory = File(cacheDir, "diagnostic_reports"),
+                            onBack = { showDeveloperSettings = false },
+                            onVerboseLoggingChanged = ::setVerboseLogging,
+                            onReportRetentionChanged = ::setReportRetention
+                        )
+                    }
+                    else -> {
+                        DashboardScreen(
+                            shizukuState = shizukuState,
+                            commandState = transportState,
+                            selectedLanguage = currentLanguageTag(),
+                            onRequestShizukuPermission = shizukuConnectionManager::requestPermission,
+                            onOpenShizuku = ::openShizuku,
+                            onRefreshShizuku = ::refreshConnections,
+                            onRunDiagnostics = ::runDiagnostics,
+                            onLanguageSelected = ::setLanguage,
+                            onOpenLogViewer = { showLogViewer = true },
+                            onShareDiagnosticReport = ::shareDiagnosticReport,
+                            onOpenDeveloperSettings = { showDeveloperSettings = true },
+                            isPreparingReport = isPreparingReport
+                        )
+                    }
                 }
             }
         }
@@ -153,7 +175,8 @@ class MainActivity : AppCompatActivity() {
                 )
                 val report = collector.collect()
                 val file = DiagnosticReportWriter(
-                    File(cacheDir, "diagnostic_reports")
+                    directory = File(cacheDir, "diagnostic_reports"),
+                    maxRetainedReports = developerSettings.retainedDiagnosticReports
                 ).write(report, format)
 
                 AppLog.info(
@@ -177,6 +200,25 @@ class MainActivity : AppCompatActivity() {
                 isPreparingReport = false
             }
         }
+    }
+
+    private fun setVerboseLogging(enabled: Boolean) {
+        developerSettings = developerSettingsStore.setVerboseLoggingEnabled(enabled)
+        AppLog.setVerboseLogging(enabled)
+        AppLog.info(
+            LogModule.APP,
+            "developer_verbose_logging_changed",
+            "enabled=" + enabled
+        )
+    }
+
+    private fun setReportRetention(count: Int) {
+        developerSettings = developerSettingsStore.setRetainedDiagnosticReports(count)
+        AppLog.info(
+            LogModule.REPORT,
+            "developer_report_retention_changed",
+            "retained=" + developerSettings.retainedDiagnosticReports
+        )
     }
 
     private fun setLanguage(languageTag: String) {

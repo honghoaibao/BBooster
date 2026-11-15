@@ -3,6 +3,7 @@ package com.honghoaibao.bbooster.core.diagnostics.report
 import java.nio.file.Files
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -15,7 +16,10 @@ class DiagnosticReportWriterTest {
         val report = emptyReport()
 
         val textFile = writer.write(report, DiagnosticReportFormat.TEXT)
-        val jsonFile = writer.write(report.copy(generatedAtMillis = report.generatedAtMillis + 1_000L), DiagnosticReportFormat.JSON)
+        val jsonFile = writer.write(
+            report.copy(generatedAtMillis = report.generatedAtMillis + 1_000L),
+            DiagnosticReportFormat.JSON
+        )
 
         assertTrue(textFile.isFile)
         assertTrue(textFile.name.endsWith(".txt"))
@@ -23,6 +27,7 @@ class DiagnosticReportWriterTest {
         assertTrue(jsonFile.isFile)
         assertTrue(jsonFile.name.endsWith(".json"))
         assertTrue(jsonFile.readText().contains("\"schema_version\":1"))
+        assertEquals(2, writer.countReports())
     }
 
     @Test
@@ -37,10 +42,23 @@ class DiagnosticReportWriterTest {
             )
         }
 
-        val retained = directory.listFiles()
-            ?.filter { it.isFile && it.name.endsWith(".txt") }
-            .orEmpty()
-        assertEquals(2, retained.size)
+        assertEquals(2, writer.pruneToRetention())
+    }
+
+    @Test
+    fun clearAllReportsDeletesOnlyBBoosterDiagnosticFiles() = runBlocking {
+        val directory = Files.createTempDirectory("bbooster-report-clear").toFile()
+        val writer = DiagnosticReportWriter(directory)
+        writer.write(emptyReport(), DiagnosticReportFormat.TEXT)
+        val unrelated = directory.resolve("keep-this.txt")
+        unrelated.writeText("unrelated")
+        val temporary = directory.resolve("bbooster-diagnostic-interrupted.json.tmp")
+        temporary.writeText("partial")
+
+        assertTrue(writer.clearAllReports())
+        assertEquals(0, writer.countReports())
+        assertTrue(unrelated.isFile)
+        assertFalse(temporary.exists())
     }
 
     private fun emptyReport() = DiagnosticReport(

@@ -135,4 +135,27 @@
     <string name="report_share_subject">Báo cáo chẩn đoán BBooster</string>
     <string name="report_share_chooser">Chia sẻ báo cáo chẩn đoán</string>
     <string name="report_share_failed">Không thể tạo hoặc chia sẻ báo cáo chẩn đoán.</string>
+    <string name="devsettings_open">Cài đặt nhà phát triển</string>
+    <string name="devsettings_title">Cài đặt nhà phát triển</string>
+    <string name="devsettings_subtitle">Tùy chọn cục bộ cho chẩn đoán và xử lý sự cố.</string>
+    <string name="devsettings_logging_title">Ghi nhật ký</string>
+    <string name="devsettings_logging_description">Chọn mức độ chi tiết mà BBooster lưu trên thiết bị.</string>
+    <string name="devsettings_verbose_title">Ghi nhật ký chi tiết</string>
+    <string name="devsettings_verbose_description">Bật các sự kiện DEBUG. Tùy chọn này có thể làm tăng lượng log và dung lượng sử dụng.</string>
+    <string name="devsettings_log_storage">Dung lượng nhật ký đang dùng</string>
+    <string name="devsettings_log_storage_note">Kho nhật ký hiện tại vẫn giới hạn ở 1 MiB và tự động xoay tệp.</string>
+    <string name="devsettings_report_title">Báo cáo chẩn đoán</string>
+    <string name="devsettings_report_description">Chọn số báo cáo gần nhất được giữ trong bộ nhớ đệm riêng của ứng dụng.</string>
+    <string name="devsettings_retention_label">Giữ lại báo cáo gần nhất</string>
+    <string name="devsettings_reports_saved">Số báo cáo hiện đang lưu</string>
+    <string name="devsettings_reports_retained">Số báo cáo tối đa: %1$d</string>
+    <string name="devsettings_data_title">Dữ liệu chẩn đoán cục bộ</string>
+    <string name="devsettings_data_description">Xóa nhật ký ứng dụng và các tệp báo cáo đã tạo khỏi thiết bị này.</string>
+    <string name="devsettings_clear_button">Xóa dữ liệu chẩn đoán</string>
+    <string name="devsettings_clear_confirm_title">Xóa dữ liệu chẩn đoán cục bộ?</string>
+    <string name="devsettings_clear_confirm_message">Thao tác này xóa các tệp nhật ký hiện tại và toàn bộ báo cáo trong cache ứng dụng. Những tệp đã chia sẻ sang ứng dụng khác sẽ không bị thu hồi.</string>
+    <string name="devsettings_clearing">Đang xóa dữ liệu cục bộ…</string>
+    <string name="devsettings_clear_success">Đã xóa dữ liệu chẩn đoán cục bộ.</string>
+    <string name="devsettings_clear_failed">Một số tệp chẩn đoán chưa thể xóa.</string>
+    <string name="devsettings_local_note">Các cài đặt này chỉ được lưu trên thiết bị. Chúng không thay đổi quyền Shizuku, chính sách lệnh hay hành vi của transport.</string>
 </resources>
