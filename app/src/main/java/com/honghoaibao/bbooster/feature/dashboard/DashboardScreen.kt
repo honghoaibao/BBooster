@@ -24,6 +24,10 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
@@ -83,6 +87,8 @@ fun DashboardScreen(
     onTestTransport: (CommandTransportType) -> Unit,
     isPreparingReport: Boolean
 ) {
+    var developerToolsExpanded by remember { mutableStateOf(false) }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -107,32 +113,6 @@ fun DashboardScreen(
             )
         }
 
-        ShizukuStatusCard(
-            state = shizukuState,
-            onRequestPermission = onRequestShizukuPermission,
-            onOpenShizuku = onOpenShizuku,
-            onRefresh = onRefreshShizuku
-        )
-
-        CommandEngineCard(
-            shizukuReady = shizukuState.status == ShizukuConnectionStatus.READY,
-            state = commandState,
-            onRunDiagnostics = onRunDiagnostics
-        )
-
-        LanguageSelectorCard(selectedLanguage, onLanguageSelected)
-
-        DeveloperToolsCard(
-            onOpenLogViewer = onOpenLogViewer,
-            onShareReport = onShareDiagnosticReport,
-            onOpenSettings = onOpenDeveloperSettings,
-            lastTransportTestResult = lastTransportTestResult,
-            isTestingTransport = isTestingTransport,
-            canTestTransport = canTestTransport,
-            onTestTransport = onTestTransport,
-            isPreparingReport = isPreparingReport
-        )
-
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             SectionHeading(
                 title = stringResource(R.string.section_device_overview),
@@ -146,6 +126,19 @@ fun DashboardScreen(
                 onRefresh = onRefreshDeviceDiagnostics
             )
         }
+
+        ShizukuStatusCard(
+            state = shizukuState,
+            onRequestPermission = onRequestShizukuPermission,
+            onOpenShizuku = onOpenShizuku,
+            onRefresh = onRefreshShizuku
+        )
+
+        CommandEngineCard(
+            shizukuReady = shizukuState.status == ShizukuConnectionStatus.READY,
+            state = commandState,
+            onRunDiagnostics = onRunDiagnostics
+        )
 
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
             SectionHeading(
@@ -165,6 +158,21 @@ fun DashboardScreen(
                 stringResource(R.string.session_recovery_description)
             )
         }
+
+        DeveloperToolsCard(
+            onOpenLogViewer = onOpenLogViewer,
+            onShareReport = onShareDiagnosticReport,
+            onOpenSettings = onOpenDeveloperSettings,
+            lastTransportTestResult = lastTransportTestResult,
+            isTestingTransport = isTestingTransport,
+            canTestTransport = canTestTransport,
+            onTestTransport = onTestTransport,
+            isPreparingReport = isPreparingReport,
+            isExpanded = developerToolsExpanded,
+            onToggleExpanded = { developerToolsExpanded = !developerToolsExpanded }
+        )
+
+        LanguageSelectorCard(selectedLanguage, onLanguageSelected)
 
         Surface(
             color = Color(0xFF111722),
@@ -192,7 +200,9 @@ private fun DeveloperToolsCard(
     isTestingTransport: Boolean,
     canTestTransport: Boolean,
     onTestTransport: (CommandTransportType) -> Unit,
-    isPreparingReport: Boolean
+    isPreparingReport: Boolean,
+    isExpanded: Boolean,
+    onToggleExpanded: () -> Unit
 ) {
     Card(
         colors = CardDefaults.cardColors(containerColor = DarkSlate),
@@ -211,174 +221,209 @@ private fun DeveloperToolsCard(
                 fontWeight = FontWeight.Bold,
                 letterSpacing = 1.sp
             )
-            Text(
-                stringResource(R.string.log_viewer_title),
-                color = SoftWhite,
-                fontSize = 16.sp,
-                fontWeight = FontWeight.SemiBold
-            )
-            Text(
-                stringResource(R.string.devtools_card_description),
-                color = MutedText,
-                fontSize = 12.sp,
-                lineHeight = 17.sp
-            )
-            ActionButton(
-                stringResource(R.string.devtools_open_logs),
-                onOpenLogViewer
-            )
-
-            Text(
-                stringResource(R.string.report_section),
-                color = SoftWhite,
-                fontSize = 14.sp,
-                fontWeight = FontWeight.SemiBold
-            )
-            Text(
-                stringResource(R.string.report_description),
-                color = MutedText,
-                fontSize = 12.sp,
-                lineHeight = 17.sp
-            )
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(9.dp)
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Button(
-                    onClick = { onShareReport(DiagnosticReportFormat.TEXT) },
-                    enabled = !isPreparingReport,
+                Column(
                     modifier = Modifier.weight(1f),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = ElectricCyan,
-                        contentColor = Obsidian,
-                        disabledContainerColor = SlateBorder,
-                        disabledContentColor = MutedText
-                    )
+                    verticalArrangement = Arrangement.spacedBy(3.dp)
                 ) {
-                    Text(stringResource(R.string.report_export_txt), fontWeight = FontWeight.Bold)
+                    Text(
+                        stringResource(R.string.devtools_summary_title),
+                        color = SoftWhite,
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Text(
+                        stringResource(R.string.devtools_card_description),
+                        color = MutedText,
+                        fontSize = 12.sp,
+                        lineHeight = 17.sp
+                    )
                 }
-                Button(
-                    onClick = { onShareReport(DiagnosticReportFormat.JSON) },
-                    enabled = !isPreparingReport,
-                    modifier = Modifier.weight(1f),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFF263747),
-                        contentColor = SoftWhite,
-                        disabledContainerColor = SlateBorder,
-                        disabledContentColor = MutedText
+                TextButton(onClick = onToggleExpanded) {
+                    Text(
+                        stringResource(
+                            if (isExpanded) R.string.devtools_collapse
+                            else R.string.devtools_expand
+                        ),
+                        color = ElectricCyan,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.SemiBold
                     )
-                ) {
-                    Text(stringResource(R.string.report_export_json), fontWeight = FontWeight.Bold)
                 }
             }
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(
-                    stringResource(R.string.transport_test_title),
-                    color = SoftWhite,
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.SemiBold
-                )
-                Text(
-                    stringResource(R.string.transport_test_description),
-                    color = MutedText,
-                    fontSize = 11.sp,
-                    lineHeight = 16.sp
-                )
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Button(
-                        onClick = { onTestTransport(CommandTransportType.USER_SERVICE) },
-                        enabled = canTestTransport && !isTestingTransport,
-                        modifier = Modifier.weight(1f),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = ElectricCyan,
-                            contentColor = Obsidian,
-                            disabledContainerColor = SlateBorder,
-                            disabledContentColor = MutedText
-                        )
-                    ) {
-                        Text(
-                            stringResource(R.string.transport_test_user_service),
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 11.sp
-                        )
-                    }
-                    Button(
-                        onClick = { onTestTransport(CommandTransportType.DIRECT_PROCESS) },
-                        enabled = canTestTransport && !isTestingTransport,
-                        modifier = Modifier.weight(1f),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = Color(0xFF263747),
-                            contentColor = SoftWhite,
-                            disabledContainerColor = SlateBorder,
-                            disabledContentColor = MutedText
-                        )
-                    ) {
-                        Text(
-                            stringResource(R.string.transport_test_direct_process),
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 11.sp
-                        )
-                    }
-                }
-                if (!canTestTransport && !isTestingTransport) {
-                    Text(
-                        stringResource(R.string.transport_test_requires_ready),
-                        color = MutedText,
-                        fontSize = 10.sp,
-                        lineHeight = 14.sp
+
+            if (isExpanded) {
+                Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
+                    ActionButton(
+                        stringResource(R.string.devtools_open_logs),
+                        onOpenLogViewer
                     )
-                }
-                if (isTestingTransport) {
+
+                    Text(
+                        stringResource(R.string.report_section),
+                        color = SoftWhite,
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                    Text(
+                        stringResource(R.string.report_description),
+                        color = MutedText,
+                        fontSize = 12.sp,
+                        lineHeight = 17.sp
+                    )
                     Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(9.dp)
                     ) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.width(15.dp).height(15.dp),
-                            strokeWidth = 2.dp,
-                            color = ElectricCyan
+                        Button(
+                            onClick = { onShareReport(DiagnosticReportFormat.TEXT) },
+                            enabled = !isPreparingReport,
+                            modifier = Modifier.weight(1f),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = ElectricCyan,
+                                contentColor = Obsidian,
+                                disabledContainerColor = SlateBorder,
+                                disabledContentColor = MutedText
+                            )
+                        ) {
+                            Text(
+                                stringResource(R.string.report_export_txt),
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                        Button(
+                            onClick = { onShareReport(DiagnosticReportFormat.JSON) },
+                            enabled = !isPreparingReport,
+                            modifier = Modifier.weight(1f),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = Color(0xFF263747),
+                                contentColor = SoftWhite,
+                                disabledContainerColor = SlateBorder,
+                                disabledContentColor = MutedText
+                            )
+                        ) {
+                            Text(
+                                stringResource(R.string.report_export_json),
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(
+                            stringResource(R.string.transport_test_title),
+                            color = SoftWhite,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.SemiBold
                         )
                         Text(
-                            stringResource(R.string.transport_test_running),
+                            stringResource(R.string.transport_test_description),
                             color = MutedText,
-                            fontSize = 11.sp
+                            fontSize = 11.sp,
+                            lineHeight = 16.sp
+                        )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Button(
+                                onClick = { onTestTransport(CommandTransportType.USER_SERVICE) },
+                                enabled = canTestTransport && !isTestingTransport,
+                                modifier = Modifier.weight(1f),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = ElectricCyan,
+                                    contentColor = Obsidian,
+                                    disabledContainerColor = SlateBorder,
+                                    disabledContentColor = MutedText
+                                )
+                            ) {
+                                Text(
+                                    stringResource(R.string.transport_test_user_service),
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 11.sp
+                                )
+                            }
+                            Button(
+                                onClick = { onTestTransport(CommandTransportType.DIRECT_PROCESS) },
+                                enabled = canTestTransport && !isTestingTransport,
+                                modifier = Modifier.weight(1f),
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = Color(0xFF263747),
+                                    contentColor = SoftWhite,
+                                    disabledContainerColor = SlateBorder,
+                                    disabledContentColor = MutedText
+                                )
+                            ) {
+                                Text(
+                                    stringResource(R.string.transport_test_direct_process),
+                                    fontWeight = FontWeight.Bold,
+                                    fontSize = 11.sp
+                                )
+                            }
+                        }
+                        if (!canTestTransport && !isTestingTransport) {
+                            Text(
+                                stringResource(R.string.transport_test_requires_ready),
+                                color = MutedText,
+                                fontSize = 10.sp,
+                                lineHeight = 14.sp
+                            )
+                        }
+                        if (isTestingTransport) {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.width(15.dp).height(15.dp),
+                                    strokeWidth = 2.dp,
+                                    color = ElectricCyan
+                                )
+                                Text(
+                                    stringResource(R.string.transport_test_running),
+                                    color = MutedText,
+                                    fontSize = 11.sp
+                                )
+                            }
+                        }
+                        lastTransportTestResult?.let { result ->
+                            TransportTestResultCard(result)
+                        }
+                    }
+
+                    TextButton(
+                        onClick = onOpenSettings,
+                        enabled = !isPreparingReport,
+                        modifier = Modifier.align(Alignment.End)
+                    ) {
+                        Text(
+                            stringResource(R.string.devsettings_open),
+                            color = ElectricCyan,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.SemiBold
                         )
                     }
-                }
-                lastTransportTestResult?.let { result ->
-                    TransportTestResultCard(result)
-                }
-            }
-            TextButton(
-                onClick = onOpenSettings,
-                enabled = !isPreparingReport,
-                modifier = Modifier.align(Alignment.End)
-            ) {
-                Text(
-                    stringResource(R.string.devsettings_open),
-                    color = ElectricCyan,
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.SemiBold
-                )
-            }
-            if (isPreparingReport) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(9.dp)
-                ) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.width(16.dp).height(16.dp),
-                        strokeWidth = 2.dp,
-                        color = ElectricCyan
-                    )
-                    Text(
-                        stringResource(R.string.report_generating),
-                        color = MutedText,
-                        fontSize = 11.sp
-                    )
+                    if (isPreparingReport) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(9.dp)
+                        ) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.width(16.dp).height(16.dp),
+                                strokeWidth = 2.dp,
+                                color = ElectricCyan
+                            )
+                            Text(
+                                stringResource(R.string.report_generating),
+                                color = MutedText,
+                                fontSize = 11.sp
+                            )
+                        }
+                    }
                 }
             }
         }

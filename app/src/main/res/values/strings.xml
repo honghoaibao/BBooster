@@ -3,7 +3,7 @@
     <string name="app_name">BBooster</string>
     <string name="header_subtitle">ANDROID GAME COMPANION</string>
     <string name="hero_title">Your gaming space.</string>
-    <string name="hero_description">A clear view of your device, games, and boost tools.</string>
+    <string name="hero_description">Monitor your device and explore the tools being built for your gaming sessions.</string>
     <string name="shizuku_section">SHIZUKU CONNECTION</string>
     <string name="shizuku_checking_title">Checking Shizuku service</string>
     <string name="shizuku_checking_description">Checking whether the Shizuku Binder is available.</string>
@@ -73,7 +73,7 @@
     <string name="command_interrupted">Command interrupted</string>
     <string name="command_unknown_result">Execution result is unknown</string>
     <string name="command_output_truncated">Output was shortened to stay within the safety limit.</string>
-    <string name="version_footer">SHIZUKU TRANSPORT ENGINE · v0.3.5</string>
+    <string name="version_footer">ANDROID GAME COMPANION · DEVICE MONITORING</string>
     <string name="transport_refreshing">Checking Shizuku transport availability…</string>
     <string name="language_title">Language</string>
     <string name="language_english">English</string>
@@ -81,16 +81,16 @@
     <string name="section_device_overview">DEVICE OVERVIEW</string>
     <string name="phase_three">PHASE 3</string>
     <string name="boost_tools">BOOST TOOLS</string>
-    <string name="coming_next">COMING NEXT</string>
+    <string name="coming_next">ROADMAP</string>
     <string name="game_library">Game library</string>
-    <string name="game_library_description">Choose and organize the games you want to manage.</string>
+    <string name="game_library_description">Planned: browse and organize your games from one place.</string>
     <string name="optimization_engine">Optimization engine</string>
-    <string name="optimization_engine_description">Review safe, device-supported optimizations before applying them.</string>
+    <string name="optimization_engine_description">Planned: review device-supported optimization options before applying them.</string>
     <string name="session_recovery">Session recovery</string>
-    <string name="session_recovery_description">Track temporary changes and restore the original device settings.</string>
-    <string name="soon">SOON</string>
+    <string name="session_recovery_description">Planned: track temporary changes and restore them when needed.</string>
+    <string name="soon">PLANNED</string>
     <string name="devtools_title">Developer tools</string>
-    <string name="devtools_card_description">Inspect local application events to troubleshoot connection and transport issues.</string>
+    <string name="devtools_card_description">Expand to view local logs, export diagnostic reports, and test available transports.</string>
     <string name="devtools_open_logs">Open Log Viewer</string>
     <string name="log_viewer_title">Log Viewer</string>
     <string name="log_back">Back</string>
@@ -197,7 +197,6 @@
     <string name="transport_test_command_failed">Command failed</string>
 
     <string name="phase_four">PHASE 4 · DEVICE MONITORING</string>
-    <string name="device_telemetry_title">Device monitoring</string>
     <string name="device_monitoring_active">Monitoring active · %1$d/%2$d samples in memory</string>
     <string name="device_monitoring_paused">Monitoring paused · %1$d/%2$d samples in memory</string>
     <string name="device_cpu_usage">App CPU usage</string>
@@ -215,4 +214,8 @@
     <string name="device_thermal_critical">Critical</string>
     <string name="device_thermal_emergency">Emergency</string>
     <string name="device_thermal_shutdown">Shutdown</string>
+
+    <string name="devtools_summary_title">Diagnostics and developer tools</string>
+    <string name="devtools_expand">Show tools</string>
+    <string name="devtools_collapse">Hide tools</string>
 </resources>

@@ -3,7 +3,7 @@
     <string name="app_name">BBooster</string>
     <string name="header_subtitle">TRỢ LÝ CHƠI GAME ANDROID</string>
     <string name="hero_title">Không gian chơi game của bạn.</string>
-    <string name="hero_description">Theo dõi thiết bị, trò chơi và các công cụ hỗ trợ tại một nơi.</string>
+    <string name="hero_description">Theo dõi thiết bị và khám phá các công cụ đang được phát triển cho phiên chơi game.</string>
     <string name="shizuku_section">KẾT NỐI SHIZUKU</string>
     <string name="shizuku_checking_title">Đang kiểm tra Shizuku</string>
     <string name="shizuku_checking_description">Đang kiểm tra Binder của Shizuku có khả dụng hay không.</string>
@@ -73,7 +73,7 @@
     <string name="command_interrupted">Lệnh bị gián đoạn</string>
     <string name="command_unknown_result">Không xác định được kết quả thực thi</string>
     <string name="command_output_truncated">Đầu ra đã được rút gọn theo giới hạn an toàn.</string>
-    <string name="version_footer">SHIZUKU TRANSPORT ENGINE · v0.3.5</string>
+    <string name="version_footer">ANDROID GAME COMPANION · THEO DÕI THIẾT BỊ</string>
     <string name="transport_refreshing">Đang kiểm tra khả năng hoạt động của transport…</string>
     <string name="language_title">Ngôn ngữ</string>
     <string name="language_english">Tiếng Anh</string>
@@ -81,16 +81,16 @@
     <string name="section_device_overview">TỔNG QUAN THIẾT BỊ</string>
     <string name="phase_three">GIAI ĐOẠN 3</string>
     <string name="boost_tools">CÔNG CỤ BOOST</string>
-    <string name="coming_next">SẮP RA MẮT</string>
+    <string name="coming_next">LỘ TRÌNH</string>
     <string name="game_library">Thư viện trò chơi</string>
-    <string name="game_library_description">Chọn và sắp xếp các trò chơi mà bạn muốn quản lý.</string>
+    <string name="game_library_description">Dự kiến: xem và sắp xếp các trò chơi tại một nơi.</string>
     <string name="optimization_engine">Bộ tối ưu hóa</string>
-    <string name="optimization_engine_description">Xem trước các tùy chọn an toàn và được thiết bị hỗ trợ trước khi áp dụng.</string>
+    <string name="optimization_engine_description">Dự kiến: xem các tùy chọn tối ưu được thiết bị hỗ trợ trước khi áp dụng.</string>
     <string name="session_recovery">Khôi phục phiên</string>
-    <string name="session_recovery_description">Theo dõi thay đổi tạm thời và khôi phục cài đặt ban đầu của thiết bị.</string>
-    <string name="soon">SẮP CÓ</string>
+    <string name="session_recovery_description">Dự kiến: theo dõi thay đổi tạm thời và khôi phục khi cần.</string>
+    <string name="soon">DỰ KIẾN</string>
     <string name="devtools_title">Công cụ nhà phát triển</string>
-    <string name="devtools_card_description">Xem các sự kiện cục bộ của ứng dụng để tìm nguyên nhân sự cố kết nối và transport.</string>
+    <string name="devtools_card_description">Mở rộng để xem nhật ký cục bộ, xuất báo cáo chẩn đoán và kiểm tra các transport khả dụng.</string>
     <string name="devtools_open_logs">Mở Log Viewer</string>
     <string name="log_viewer_title">Trình xem nhật ký</string>
     <string name="log_back">Quay lại</string>
@@ -197,7 +197,6 @@
     <string name="transport_test_command_failed">Lệnh thất bại</string>
 
     <string name="phase_four">GIAI ĐOẠN 4 · THEO DÕI THIẾT BỊ</string>
-    <string name="device_telemetry_title">Theo dõi thiết bị</string>
     <string name="device_monitoring_active">Đang theo dõi · %1$d/%2$d mẫu trong bộ nhớ</string>
     <string name="device_monitoring_paused">Đã tạm dừng · %1$d/%2$d mẫu trong bộ nhớ</string>
     <string name="device_cpu_usage">CPU của ứng dụng</string>
@@ -215,4 +214,8 @@
     <string name="device_thermal_critical">Rất nghiêm trọng</string>
     <string name="device_thermal_emergency">Khẩn cấp</string>
     <string name="device_thermal_shutdown">Tắt hệ thống</string>
+
+    <string name="devtools_summary_title">Chẩn đoán và công cụ nhà phát triển</string>
+    <string name="devtools_expand">Mở công cụ</string>
+    <string name="devtools_collapse">Thu gọn</string>
 </resources>

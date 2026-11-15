@@ -5,10 +5,14 @@ Native Android Game Booster built with Kotlin and Jetpack Compose.
 ## Project status
 
 - Phase 0: repository and build-tool baseline selected.
-- Phase 1: Android foundation and manual GitHub Actions CI.
+- Phase 1: Android foundation and manual-only GitHub Actions CI.
 - Phase 2: Shizuku Binder detection and permission flow.
 - Phase 3: Shizuku UserService bridge, read-only diagnostic command engine, execution timeouts, and Vietnamese/English localization.
-- Later phases: device telemetry, carefully scoped optimization actions, recovery, overlay, and release hardening.
+- Phase 4.1: process CPU telemetry and Android thermal status.
+- Phase 4.2: foreground-only device monitoring at 5-second intervals, with up to 60 in-memory samples.
+- Phase 4.3: Dashboard telemetry, CPU trend display, and TXT/JSON report history.
+- Phase 5: Dashboard information hierarchy, roadmap presentation, and compact developer tools.
+- Upcoming: game library, carefully scoped optimization actions, recovery, and release hardening.
 
 ## Technical baseline
 
