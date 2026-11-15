@@ -74,6 +74,7 @@ fun DashboardScreen(
     onRunDiagnostics: () -> Unit,
     onLanguageSelected: (String) -> Unit,
     onOpenLogViewer: () -> Unit,
+    onOpenDiagnosticsHub: () -> Unit,
     onShareDiagnosticReport: (DiagnosticReportFormat) -> Unit,
     onOpenDeveloperSettings: () -> Unit,
     deviceDiagnostics: DeviceDiagnostics?,
@@ -161,6 +162,7 @@ fun DashboardScreen(
 
         DeveloperToolsCard(
             onOpenLogViewer = onOpenLogViewer,
+            onOpenDiagnosticsHub = onOpenDiagnosticsHub,
             onShareReport = onShareDiagnosticReport,
             onOpenSettings = onOpenDeveloperSettings,
             lastTransportTestResult = lastTransportTestResult,
@@ -194,6 +196,7 @@ fun DashboardScreen(
 @Composable
 private fun DeveloperToolsCard(
     onOpenLogViewer: () -> Unit,
+    onOpenDiagnosticsHub: () -> Unit,
     onShareReport: (DiagnosticReportFormat) -> Unit,
     onOpenSettings: () -> Unit,
     lastTransportTestResult: TransportTestResult?,
@@ -258,6 +261,10 @@ private fun DeveloperToolsCard(
 
             if (isExpanded) {
                 Column(verticalArrangement = Arrangement.spacedBy(9.dp)) {
+                    ActionButton(
+                        stringResource(R.string.devtools_open_inspector),
+                        onOpenDiagnosticsHub
+                    )
                     ActionButton(
                         stringResource(R.string.devtools_open_logs),
                         onOpenLogViewer

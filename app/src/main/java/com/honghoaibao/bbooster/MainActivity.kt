@@ -34,6 +34,7 @@ import com.honghoaibao.bbooster.core.shizuku.ShizukuConnectionStatus
 import com.honghoaibao.bbooster.core.shizuku.transport.ShizukuTransportManager
 import com.honghoaibao.bbooster.feature.dashboard.DashboardScreen
 import com.honghoaibao.bbooster.feature.devtools.DeveloperSettingsScreen
+import com.honghoaibao.bbooster.feature.devtools.DiagnosticsHubScreen
 import com.honghoaibao.bbooster.feature.devtools.LogViewerScreen
 import com.honghoaibao.bbooster.ui.theme.BBoosterTheme
 import kotlinx.coroutines.CancellationException
@@ -83,10 +84,16 @@ class MainActivity : AppCompatActivity() {
             val deviceTelemetryHistory by deviceMonitoringController.samples.collectAsState()
             var showLogViewer by remember { mutableStateOf(false) }
             var showDeveloperSettings by remember { mutableStateOf(false) }
+            var showDiagnosticsHub by remember { mutableStateOf(false) }
 
-            BackHandler(enabled = showLogViewer || showDeveloperSettings) {
-                showLogViewer = false
-                showDeveloperSettings = false
+            BackHandler(enabled = showLogViewer || showDeveloperSettings || showDiagnosticsHub) {
+                if (showLogViewer) {
+                    showLogViewer = false
+                } else if (showDeveloperSettings) {
+                    showDeveloperSettings = false
+                } else {
+                    showDiagnosticsHub = false
+                }
             }
 
             BBoosterTheme {
@@ -103,6 +110,21 @@ class MainActivity : AppCompatActivity() {
                             onReportRetentionChanged = ::setReportRetention
                         )
                     }
+                    showDiagnosticsHub -> {
+                        DiagnosticsHubScreen(
+                            diagnostics = deviceDiagnostics,
+                            telemetryHistory = deviceTelemetryHistory,
+                            isMonitoring = isDeviceMonitoring,
+                            isRefreshingDeviceDiagnostics = isRefreshingDeviceDiagnostics,
+                            shizukuState = shizukuState,
+                            transportState = transportState,
+                            isPreparingReport = isPreparingReport,
+                            onRefreshDeviceDiagnostics = ::refreshDeviceDiagnostics,
+                            onOpenLogViewer = { showLogViewer = true },
+                            onShareDiagnosticReport = ::shareDiagnosticReport,
+                            onBack = { showDiagnosticsHub = false }
+                        )
+                    }
                     else -> {
                         DashboardScreen(
                             shizukuState = shizukuState,
@@ -114,6 +136,7 @@ class MainActivity : AppCompatActivity() {
                             onRunDiagnostics = ::runDiagnostics,
                             onLanguageSelected = ::setLanguage,
                             onOpenLogViewer = { showLogViewer = true },
+                            onOpenDiagnosticsHub = { showDiagnosticsHub = true },
                             onShareDiagnosticReport = ::shareDiagnosticReport,
                             onOpenDeveloperSettings = { showDeveloperSettings = true },
                             deviceDiagnostics = deviceDiagnostics,

@@ -12,6 +12,7 @@ Native Android Game Booster built with Kotlin and Jetpack Compose.
 - Phase 4.2: foreground-only device monitoring at 5-second intervals, with up to 60 in-memory samples.
 - Phase 4.3: Dashboard telemetry, CPU trend display, and TXT/JSON report history.
 - Phase 5: Dashboard information hierarchy, roadmap presentation, and compact developer tools.
+- Phase 6: read-only Diagnostics Hub for app runtime, device snapshot, Shizuku/transport state, monitoring history, and log health.
 - Upcoming: game library, carefully scoped optimization actions, recovery, and release hardening.
 
 ## Technical baseline
