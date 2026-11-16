@@ -1,4 +1,5 @@
 name: Replace repository from phase 1 ZIP
+# User-authorized reset: clear tracked project contents and extract the retained archive.
 
 on:
   push:
