@@ -14,6 +14,10 @@ internal object UserServiceCallerPolicy {
             expectedCallerUid >= 0 &&
             callingUid >= 0 &&
             callingUid == expectedCallerUid
+
+    /** Shizuku sends the destroy transaction from its own shell/root process. */
+    fun isAuthorizedServiceController(serviceUid: Int, callingUid: Int): Boolean =
+        serviceUid >= 0 && callingUid == serviceUid
 }
 
 /**
