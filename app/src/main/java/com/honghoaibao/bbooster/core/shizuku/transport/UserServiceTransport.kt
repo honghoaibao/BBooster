@@ -499,7 +499,7 @@ class UserServiceTransport(
 
     private companion object {
         const val USER_SERVICE_TAG = "bbooster-command-service"
-        const val USER_SERVICE_VERSION = 4
+        const val USER_SERVICE_VERSION = 5
         const val USER_SERVICE_PROCESS_SUFFIX = "bbooster"
         const val DEFAULT_BIND_TIMEOUT_MS = 8_000L
         const val CALLBACK_GRACE_MS = 4_000L
