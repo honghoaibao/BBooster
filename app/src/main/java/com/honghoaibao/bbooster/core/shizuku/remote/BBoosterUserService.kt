@@ -1,32 +1,51 @@
 package com.honghoaibao.bbooster.core.shizuku.remote
 
 import android.content.Context
+import android.os.Binder
 import android.util.Log
 import androidx.annotation.Keep
+import com.honghoaibao.bbooster.BuildConfig
 import com.honghoaibao.bbooster.core.command.CommandExecutionMode
 import com.honghoaibao.bbooster.core.command.CommandRegistry
 import com.honghoaibao.bbooster.core.command.CommandTransportType
-import java.util.concurrent.Executors
 import java.util.concurrent.RejectedExecutionException
+import java.util.concurrent.ThreadPoolExecutor
 
 /**
  * Shizuku UserService that executes only commands declared in CommandRegistry.
  * Command arguments always come from the registry, never from AIDL caller input.
  */
 @Keep
-class BBoosterUserService : IUserService.Stub {
+class BBoosterUserService private constructor(
+    private val expectedCallerUid: Int?
+) : IUserService.Stub() {
 
     private val runner = RegisteredCommandRunner()
-    private val commandExecutor = Executors.newFixedThreadPool(MAX_CONCURRENT_COMMANDS) { runnable ->
-        Thread(runnable, "BBooster-user-command").apply { isDaemon = true }
+    private val commandExecutor: ThreadPoolExecutor =
+        UserServiceCommandExecutorFactory.create(
+            maxConcurrentCommands = MAX_CONCURRENT_COMMANDS,
+            maxQueuedCommands = MAX_QUEUED_COMMANDS,
+            threadNamePrefix = "BBooster-user-command"
+        )
+
+    init {
+        if (expectedCallerUid == null) {
+            Log.w(
+                TAG,
+                "Caller UID could not be verified; privileged UserService execution is disabled."
+            )
+        } else {
+            Log.i(TAG, "UserService instance created with caller verification enabled.")
+        }
     }
 
-    constructor() : super() {
-        Log.i(TAG, "UserService instance created.")
-    }
-
+    /** Compatibility constructor used by Shizuku servers older than v13. */
     @Keep
-    constructor(@Suppress("UNUSED_PARAMETER") context: Context) : this()
+    constructor() : this(null)
+
+    /** Shizuku v13+ supplies the owning application context. */
+    @Keep
+    constructor(context: Context) : this(resolveExpectedCallerUid(context))
 
     override fun execute(
         actionId: String?,
@@ -35,6 +54,13 @@ class BBoosterUserService : IUserService.Stub {
     ) {
         if (callback == null) {
             Log.w(TAG, "AIDL execute called without a callback.")
+            return
+        }
+
+        val callingUid = Binder.getCallingUid()
+        if (!UserServiceCallerPolicy.isAuthorized(expectedCallerUid, callingUid)) {
+            Log.w(TAG, "Rejected UserService request from an unverified Binder caller.")
+            reject(callback, "UserService could not verify the Binder caller.")
             return
         }
 
@@ -97,5 +123,14 @@ class BBoosterUserService : IUserService.Stub {
     private companion object {
         const val TAG = "BBoosterUserService"
         const val MAX_CONCURRENT_COMMANDS = 2
+        const val MAX_QUEUED_COMMANDS = 4
+
+        fun resolveExpectedCallerUid(context: Context): Int? = runCatching {
+            if (context.packageName != BuildConfig.APPLICATION_ID) {
+                null
+            } else {
+                context.applicationInfo.uid.takeIf { it >= 0 }
+            }
+        }.getOrNull()
     }
 }
