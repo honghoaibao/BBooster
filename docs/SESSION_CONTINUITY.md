@@ -46,7 +46,7 @@ Implemented on this branch:
 
 ## Verification status
 
-- Source and resource changes are prepared for a single feature-branch commit.
+- Source and resource changes are committed in 02373dfb445da2a1dc353714430772c335450f6a.
 - GitHub Actions have not been run.
 - No physical-device test has been performed.
 - Before release: run testDebugUnitTest, lint, and assembleDebug; then manually verify discovery, add/remove, persistence after process restart, missing-app behavior, app launch, and both locales on Android 13 and a newer Android version.
