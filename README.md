@@ -16,6 +16,7 @@ Native Android Game Booster built with Kotlin and Jetpack Compose.
 - Phase 7.1: read-only Optimization Engine core with deterministic thermal, memory, storage, and battery findings plus unit-test coverage.
 - Phase 7.2: bilingual Optimization Engine screen with priority labels, explanations, and read-only suggested steps.
 - Phase 7.3: read-only RAM, storage, battery, and Android thermal trend analysis from up to 60 recent in-memory monitoring snapshots, with bounded median windows and bilingual UI.
+- Phase 9.1: local Game Library with launcher-app discovery, add/remove management, installed-state refresh, and app launching; implementation branch pending CI and device verification.
 - Upcoming: release hardening; any future device-changing action requires separate explicit approval and recovery design.
 
 ## Technical baseline

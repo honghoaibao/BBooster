@@ -76,6 +76,7 @@ fun DashboardScreen(
     onOpenLogViewer: () -> Unit,
     onOpenDiagnosticsHub: () -> Unit,
     onOpenOptimizationEngine: () -> Unit,
+    onOpenGameLibrary: () -> Unit,
     onShareDiagnosticReport: (DiagnosticReportFormat) -> Unit,
     onOpenDeveloperSettings: () -> Unit,
     deviceDiagnostics: DeviceDiagnostics?,
@@ -148,8 +149,9 @@ fun DashboardScreen(
                 trailing = stringResource(R.string.coming_next)
             )
             FeatureCard(
-                stringResource(R.string.game_library),
-                stringResource(R.string.game_library_description)
+                title = stringResource(R.string.game_library),
+                description = stringResource(R.string.game_library_description),
+                onClick = onOpenGameLibrary
             )
             FeatureCard(
                 title = stringResource(R.string.optimization_engine),

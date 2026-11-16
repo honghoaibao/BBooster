@@ -9,6 +9,7 @@ import androidx.activity.compose.setContent
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -17,6 +18,11 @@ import androidx.core.os.LocaleListCompat
 import androidx.lifecycle.lifecycleScope
 import com.honghoaibao.bbooster.core.diagnostics.device.AndroidDeviceDiagnosticsProvider
 import com.honghoaibao.bbooster.core.diagnostics.device.DeviceMonitoringController
+import com.honghoaibao.bbooster.core.game.AndroidGameDiscoveryProvider
+import com.honghoaibao.bbooster.core.game.GameLaunchManager
+import com.honghoaibao.bbooster.core.game.GameLaunchResult
+import com.honghoaibao.bbooster.core.game.GameLibraryRepository
+import com.honghoaibao.bbooster.core.game.SharedPreferencesGameLibraryStore
 import com.honghoaibao.bbooster.core.diagnostics.report.AndroidDiagnosticReportSharer
 import com.honghoaibao.bbooster.core.diagnostics.report.DiagnosticReportCollector
 import com.honghoaibao.bbooster.core.diagnostics.report.DiagnosticReportFormat
@@ -36,6 +42,7 @@ import com.honghoaibao.bbooster.feature.dashboard.DashboardScreen
 import com.honghoaibao.bbooster.feature.devtools.DeveloperSettingsScreen
 import com.honghoaibao.bbooster.feature.devtools.DiagnosticsHubScreen
 import com.honghoaibao.bbooster.feature.devtools.LogViewerScreen
+import com.honghoaibao.bbooster.feature.games.GameLibraryScreen
 import com.honghoaibao.bbooster.feature.optimization.OptimizationEngineScreen
 import com.honghoaibao.bbooster.ui.theme.BBoosterTheme
 import kotlinx.coroutines.CancellationException
@@ -54,6 +61,14 @@ class MainActivity : AppCompatActivity() {
     private var developerSettings by mutableStateOf(DeveloperSettings())
 
     private val developerSettingsStore by lazy { DeveloperSettingsStore(applicationContext) }
+    private val gameLibraryRepository by lazy {
+        GameLibraryRepository(
+            discoveryProvider = AndroidGameDiscoveryProvider(applicationContext),
+            store = SharedPreferencesGameLibraryStore(applicationContext),
+            ownPackageName = applicationContext.packageName
+        )
+    }
+    private val gameLaunchManager by lazy { GameLaunchManager(applicationContext) }
     private val deviceDiagnosticsProvider by lazy {
         AndroidDeviceDiagnosticsProvider(applicationContext)
     }
@@ -83,16 +98,26 @@ class MainActivity : AppCompatActivity() {
             val transportState by transportManager.state.collectAsState()
             val deviceDiagnostics by deviceMonitoringController.latestSnapshot.collectAsState()
             val deviceTelemetryHistory by deviceMonitoringController.samples.collectAsState()
+            val gameLibraryState by gameLibraryRepository.state.collectAsState()
             var showLogViewer by remember { mutableStateOf(false) }
             var showDeveloperSettings by remember { mutableStateOf(false) }
             var showDiagnosticsHub by remember { mutableStateOf(false) }
             var showOptimizationEngine by remember { mutableStateOf(false) }
+            var showGameLibrary by remember { mutableStateOf(false) }
+
+            LaunchedEffect(showGameLibrary) {
+                if (showGameLibrary) {
+                    gameLibraryRepository.load(forceRefresh = true)
+                }
+            }
 
             BackHandler(
                 enabled = showLogViewer || showDeveloperSettings ||
-                    showDiagnosticsHub || showOptimizationEngine
+                    showDiagnosticsHub || showOptimizationEngine || showGameLibrary
             ) {
-                if (showLogViewer) {
+                if (showGameLibrary) {
+                    showGameLibrary = false
+                } else if (showLogViewer) {
                     showLogViewer = false
                 } else if (showDeveloperSettings) {
                     showDeveloperSettings = false
@@ -105,6 +130,54 @@ class MainActivity : AppCompatActivity() {
 
             BBoosterTheme {
                 when {
+                    showGameLibrary -> {
+                        GameLibraryScreen(
+                            state = gameLibraryState,
+                            onBack = { showGameLibrary = false },
+                            onRefresh = {
+                                lifecycleScope.launch {
+                                    gameLibraryRepository.load(forceRefresh = true)
+                                }
+                            },
+                            onAddGame = { packageName ->
+                                lifecycleScope.launch {
+                                    if (!gameLibraryRepository.addGame(packageName)) {
+                                        Toast.makeText(
+                                            this@MainActivity,
+                                            getString(R.string.game_library_save_failed),
+                                            Toast.LENGTH_SHORT
+                                        ).show()
+                                    }
+                                }
+                            },
+                            onRemoveGame = { packageName ->
+                                lifecycleScope.launch {
+                                    if (!gameLibraryRepository.removeGame(packageName)) {
+                                        Toast.makeText(
+                                            this@MainActivity,
+                                            getString(R.string.game_library_remove_failed),
+                                            Toast.LENGTH_SHORT
+                                        ).show()
+                                    }
+                                }
+                            },
+                            onLaunchGame = { packageName ->
+                                when (gameLaunchManager.launch(packageName)) {
+                                    GameLaunchResult.STARTED -> Unit
+                                    GameLaunchResult.APP_UNAVAILABLE -> Toast.makeText(
+                                        this@MainActivity,
+                                        getString(R.string.game_library_app_unavailable),
+                                        Toast.LENGTH_SHORT
+                                    ).show()
+                                    GameLaunchResult.FAILED -> Toast.makeText(
+                                        this@MainActivity,
+                                        getString(R.string.game_library_launch_failed),
+                                        Toast.LENGTH_SHORT
+                                    ).show()
+                                }
+                            }
+                        )
+                    }
                     showLogViewer -> {
                         LogViewerScreen(onBack = { showLogViewer = false })
                     }
@@ -154,6 +227,7 @@ class MainActivity : AppCompatActivity() {
                             onOpenLogViewer = { showLogViewer = true },
                             onOpenDiagnosticsHub = { showDiagnosticsHub = true },
                             onOpenOptimizationEngine = { showOptimizationEngine = true },
+                            onOpenGameLibrary = { showGameLibrary = true },
                             onShareDiagnosticReport = ::shareDiagnosticReport,
                             onOpenDeveloperSettings = { showDeveloperSettings = true },
                             deviceDiagnostics = deviceDiagnostics,
