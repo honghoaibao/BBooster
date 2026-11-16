@@ -2,6 +2,7 @@ package com.honghoaibao.bbooster.core.shizuku.remote
 
 import android.content.Context
 import android.os.Binder
+import android.os.Process
 import android.util.Log
 import androidx.annotation.Keep
 import com.honghoaibao.bbooster.BuildConfig
@@ -106,7 +107,16 @@ class BBoosterUserService private constructor(
     }
 
     override fun destroy() {
-        Log.i(TAG, "Destroy requested.")
+        if (!UserServiceCallerPolicy.isAuthorizedServiceController(
+                serviceUid = Process.myUid(),
+                callingUid = Binder.getCallingUid()
+            )
+        ) {
+            Log.w(TAG, "Rejected UserService destroy from a non-Shizuku controller.")
+            return
+        }
+
+        Log.i(TAG, "Destroy requested by Shizuku.")
         commandExecutor.shutdownNow()
         runner.close()
         System.exit(0)
