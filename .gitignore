@@ -1,19 +1,10 @@
-# Gradle
 .gradle/
-**/build/
-
-# Android Studio / local environment
+build/
+local.properties
 .idea/
 *.iml
-local.properties
-.cxx/
-.externalNativeBuild/
-
-# Signing material - never commit private keys
-*.jks
-*.keystore
-keystore.properties
-
-# OS
 .DS_Store
-Thumbs.db
+captures/
+.cxx/
+*.apk
+*.aab

@@ -1,0 +1,41 @@
+# Versions pinned on 2026-11-16 from official sources (AGP release notes, Compose BOM page,
+# AndroidX stable channel, Dagger/KSP/Kotlin release pages, Maven for Shizuku API).
+# Kotlin is deliberately 2.3.21 (the version Dagger 2.60.1 itself is built with), not the newest 2.4.x,
+# to avoid a Kotlin-metadata mismatch in the Hilt annotation processor. Revisit when Dagger moves.
+
+[versions]
+agp = "9.5.0"
+kotlin = "2.3.21"
+ksp = "2.3.13"
+hilt = "2.60.1"
+composeBom = "2026.09.00"
+activityCompose = "1.13.0"
+lifecycle = "2.11.0"
+navigationCompose = "2.10.2"
+hiltNavigationCompose = "1.4.0"
+coroutines = "1.11.0"
+shizuku = "13.1.5"
+junit = "4.13.2"
+
+[libraries]
+androidx-compose-bom = { group = "androidx.compose", name = "compose-bom", version.ref = "composeBom" }
+androidx-compose-ui = { group = "androidx.compose.ui", name = "ui" }
+androidx-compose-foundation = { group = "androidx.compose.foundation", name = "foundation" }
+androidx-compose-material3 = { group = "androidx.compose.material3", name = "material3" }
+androidx-activity-compose = { group = "androidx.activity", name = "activity-compose", version.ref = "activityCompose" }
+androidx-lifecycle-runtime-compose = { group = "androidx.lifecycle", name = "lifecycle-runtime-compose", version.ref = "lifecycle" }
+androidx-navigation-compose = { group = "androidx.navigation", name = "navigation-compose", version.ref = "navigationCompose" }
+androidx-hilt-navigation-compose = { group = "androidx.hilt", name = "hilt-navigation-compose", version.ref = "hiltNavigationCompose" }
+hilt-android = { group = "com.google.dagger", name = "hilt-android", version.ref = "hilt" }
+hilt-compiler = { group = "com.google.dagger", name = "hilt-compiler", version.ref = "hilt" }
+kotlinx-coroutines-android = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-android", version.ref = "coroutines" }
+shizuku-api = { group = "dev.rikka.shizuku", name = "api", version.ref = "shizuku" }
+shizuku-provider = { group = "dev.rikka.shizuku", name = "provider", version.ref = "shizuku" }
+junit = { group = "junit", name = "junit", version.ref = "junit" }
+
+[plugins]
+# AGP 9 has built-in Kotlin: do NOT apply org.jetbrains.kotlin.android.
+android-application = { id = "com.android.application", version.ref = "agp" }
+kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
+ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
+hilt = { id = "com.google.dagger.hilt.android", version.ref = "hilt" }
