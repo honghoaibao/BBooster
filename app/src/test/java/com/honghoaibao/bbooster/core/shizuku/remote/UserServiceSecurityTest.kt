@@ -32,6 +32,14 @@ class UserServiceSecurityTest {
     }
 
     @Test
+    fun acceptsDestroyOnlyFromTheUserServiceControllerUid() {
+        assertTrue(UserServiceCallerPolicy.isAuthorizedServiceController(2_000, 2_000))
+        assertTrue(UserServiceCallerPolicy.isAuthorizedServiceController(0, 0))
+        assertFalse(UserServiceCallerPolicy.isAuthorizedServiceController(2_000, 10_234))
+        assertFalse(UserServiceCallerPolicy.isAuthorizedServiceController(-1, -1))
+    }
+
+    @Test
     fun rejectsRequestsWhenWorkersAndQueueAreFull() {
         val workerStarted = CountDownLatch(1)
         val releaseWorker = CountDownLatch(1)
