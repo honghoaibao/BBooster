@@ -83,7 +83,7 @@
     <string name="boost_tools">BOOST TOOLS</string>
     <string name="coming_next">ROADMAP</string>
     <string name="game_library">Game library</string>
-    <string name="game_library_description">Planned: browse and organize your games from one place.</string>
+    <string name="game_library_description">Select, organize, and launch installed apps from one place.</string>
     <string name="optimization_engine">Optimization engine</string>
     <string name="optimization_engine_description">Review device health signals and open the read-only recommendations screen.</string>
     <string name="session_recovery">Session recovery</string>
@@ -317,4 +317,28 @@
     <string name="optimization_history_thermal_range">%1$s → %2$s</string>
     <string name="optimization_history_sample_count">%1$d valid samples</string>
     <string name="optimization_history_note">Trends use the recent in-memory history only (up to 60 snapshots). Monitoring pauses in the background, and this history is not retained after the app process ends. RAM and storage values are available/free capacity percentages, not per-app usage.</string>
+    <string name="game_library_title">Game library</string>
+    <string name="game_library_subtitle">Choose installed apps to keep in your library and launch them from one place.</string>
+    <string name="game_library_add_game">Add apps</string>
+    <string name="game_library_add_action">Add</string>
+    <string name="game_library_refresh">Refresh</string>
+    <string name="game_library_refreshing">Refreshing…</string>
+    <string name="game_library_search">Search your library</string>
+    <string name="game_library_picker_title">Add to your library</string>
+    <string name="game_library_picker_search">Search installed apps</string>
+    <string name="game_library_empty_title">Your library is empty</string>
+    <string name="game_library_empty_detail">Add installed apps from the picker to build your game library.</string>
+    <string name="game_library_search_empty">No matching games</string>
+    <string name="game_library_search_empty_detail">Try another name or package identifier.</string>
+    <string name="game_library_no_available_apps">No other launchable apps are available to add.</string>
+    <string name="game_library_installed">Installed</string>
+    <string name="game_library_not_installed">Not installed on this device</string>
+    <string name="game_library_open">Open</string>
+    <string name="game_library_remove">Remove</string>
+    <string name="game_library_cancel">Cancel</string>
+    <string name="game_library_load_failed">Could not load installed apps. Check the app state and try again.</string>
+    <string name="game_library_save_failed">Could not save this app to your library. Refresh and try again.</string>
+    <string name="game_library_remove_failed">Could not remove this app. Please try again.</string>
+    <string name="game_library_app_unavailable">This app is no longer available to launch.</string>
+    <string name="game_library_launch_failed">Android could not start this app.</string>
 </resources>

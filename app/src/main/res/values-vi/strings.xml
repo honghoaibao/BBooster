@@ -83,7 +83,7 @@
     <string name="boost_tools">CÔNG CỤ BOOST</string>
     <string name="coming_next">LỘ TRÌNH</string>
     <string name="game_library">Thư viện trò chơi</string>
-    <string name="game_library_description">Dự kiến: xem và sắp xếp các trò chơi tại một nơi.</string>
+    <string name="game_library_description">Chọn, sắp xếp và mở ứng dụng đã cài đặt từ một nơi.</string>
     <string name="optimization_engine">Bộ tối ưu hóa</string>
     <string name="optimization_engine_description">Kiểm tra tín hiệu thiết bị và mở màn hình đề xuất chỉ đọc.</string>
     <string name="session_recovery">Khôi phục phiên</string>
@@ -317,4 +317,28 @@
     <string name="optimization_history_thermal_range">%1$s → %2$s</string>
     <string name="optimization_history_sample_count">%1$d mẫu hợp lệ</string>
     <string name="optimization_history_note">Xu hướng chỉ dùng lịch sử gần đây trong RAM (tối đa 60 snapshot). Monitoring tạm dừng khi ứng dụng chạy nền và lịch sử không được giữ lại sau khi tiến trình ứng dụng kết thúc. RAM và lưu trữ là tỷ lệ dung lượng khả dụng/còn trống, không phải mức sử dụng của từng ứng dụng.</string>
+    <string name="game_library_title">Thư viện trò chơi</string>
+    <string name="game_library_subtitle">Chọn ứng dụng đã cài đặt để lưu vào thư viện và mở từ một nơi.</string>
+    <string name="game_library_add_game">Thêm ứng dụng</string>
+    <string name="game_library_add_action">Thêm</string>
+    <string name="game_library_refresh">Làm mới</string>
+    <string name="game_library_refreshing">Đang làm mới…</string>
+    <string name="game_library_search">Tìm trong thư viện</string>
+    <string name="game_library_picker_title">Thêm vào thư viện</string>
+    <string name="game_library_picker_search">Tìm ứng dụng đã cài đặt</string>
+    <string name="game_library_empty_title">Thư viện chưa có trò chơi</string>
+    <string name="game_library_empty_detail">Chọn ứng dụng đã cài đặt trong danh sách để tạo thư viện trò chơi.</string>
+    <string name="game_library_search_empty">Không tìm thấy trò chơi phù hợp</string>
+    <string name="game_library_search_empty_detail">Hãy thử tên khác hoặc mã package.</string>
+    <string name="game_library_no_available_apps">Không còn ứng dụng nào có thể mở để thêm.</string>
+    <string name="game_library_installed">Đã cài đặt</string>
+    <string name="game_library_not_installed">Không còn cài trên thiết bị này</string>
+    <string name="game_library_open">Mở</string>
+    <string name="game_library_remove">Xóa</string>
+    <string name="game_library_cancel">Hủy</string>
+    <string name="game_library_load_failed">Không thể tải danh sách ứng dụng. Hãy thử làm mới.</string>
+    <string name="game_library_save_failed">Không thể lưu ứng dụng vào thư viện. Hãy làm mới rồi thử lại.</string>
+    <string name="game_library_remove_failed">Không thể xóa ứng dụng. Hãy thử lại.</string>
+    <string name="game_library_app_unavailable">Ứng dụng này không còn khả dụng để mở.</string>
+    <string name="game_library_launch_failed">Android không thể khởi chạy ứng dụng này.</string>
 </resources>
