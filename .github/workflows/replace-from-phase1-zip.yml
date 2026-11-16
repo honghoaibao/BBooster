@@ -1,5 +1,5 @@
 name: Replace repository from phase 1 ZIP
-# User-authorized reset: clear tracked project contents and extract the retained archive.
+# User-authorized reset: clear project files and extract the retained archive.
 
 on:
   push:
@@ -26,7 +26,7 @@ jobs:
           ref: main
           fetch-depth: 0
 
-      - name: Replace tracked project files with ZIP contents
+      - name: Replace project files with ZIP contents
         shell: bash
         run: |
           set -euo pipefail
@@ -39,13 +39,16 @@ jobs:
           import os, shutil
 
           archive = "bbooster-phase1.zip"
+          workflow_backup = "/tmp/bbooster-workflows-backup"
+          if os.path.isdir(".github/workflows"):
+              shutil.copytree(".github/workflows", workflow_backup)
+
           with ZipFile(archive) as z:
               entries = [i for i in z.infolist() if not i.is_dir()]
               if not entries:
                   raise SystemExit("Archive contains no files.")
 
               names = [PurePosixPath(i.filename) for i in entries]
-              # Strip a single common wrapper directory when every file is inside it.
               first_parts = [p.parts[0] if p.parts else "" for p in names]
               strip = first_parts[0] if first_parts and first_parts[0] and len(set(first_parts)) == 1 and all(len(p.parts) > 1 for p in names) else None
 
@@ -57,13 +60,13 @@ jobs:
                   if parts[0] == ".git":
                       raise SystemExit("Archive must not contain a .git directory.")
                   target = PurePosixPath(*parts).as_posix()
-                  if target == archive:
+                  if target == archive or target.startswith(".github/workflows/"):
                       continue
                   planned.append((info, target))
 
-              # Remove every existing root entry except Git metadata and the source ZIP.
+              # Clear all current project files; keep the ZIP and workflow infrastructure.
               for name in os.listdir("."):
-                  if name not in (".git", archive):
+                  if name not in (".git", archive, ".github"):
                       if os.path.isdir(name) and not os.path.islink(name):
                           shutil.rmtree(name)
                       else:
@@ -78,7 +81,13 @@ jobs:
                   with z.open(info) as src, open(dest, "wb") as dst:
                       shutil.copyfileobj(src, dst)
 
-              print(f"Extracted {len(planned)} files; stripped wrapper: {strip or '(none)'}")
+          # Restore existing workflows, which cannot be pushed by this GITHUB_TOKEN.
+          if os.path.isdir(workflow_backup):
+              if os.path.isdir(".github/workflows"):
+                  shutil.rmtree(".github/workflows")
+              shutil.copytree(workflow_backup, ".github/workflows")
+
+          print(f"Extracted {len(planned)} files; preserved .github/workflows; wrapper: {strip or '(none)'}")
           PY
 
           git config user.name "github-actions[bot]"
@@ -88,5 +97,5 @@ jobs:
             echo "No repository changes detected."
             exit 0
           fi
-          git commit -m "Replace repository with bbooster phase 1 archive"
+          git commit -m "Replace project with bbooster phase 1 archive"
           git push origin HEAD:main
